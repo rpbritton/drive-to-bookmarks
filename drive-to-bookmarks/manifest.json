@@ -1,0 +1,39 @@
+{
+        "manifest_version": 2,
+        "name": "Drive to Bookmarks",
+        "version": "1.1",
+
+        "description": "Maps your google drive filearchy to your bookmarks bar.",
+
+        "author": "Ryan Britton",
+
+        "browser_action": {
+                "default_popup": "popup.html"
+        },
+
+        "options_page": "options.html",
+
+        "permissions": [
+                "identity",
+                "storage",
+		"bookmarks",
+		"alarms",
+		"background",
+                "https://*.google.com/"
+        ],
+
+	"background": {
+                "page": "background.html"
+	},
+
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAn4nu/r5VZlYpGR4qct+Vp9sNyRnGu5v3xLQl9DjHYn+xN3X9MA+TT3/a5pGgaQ2zlxFX9ncL9E8/o78+GTddZCqGD1vkbidwQrHuORWo4+oNhhZdOWf94jB+0dDcRSWq9u9i9h6pvY+yAw6EEEQRpN/b928C8DdCftNYwTz9qAYnkHTuOI8E62O7LyGEno8+N4fCf/rhoR7XSpkOwvZTRH/NiJA5urSO2ypOJzfO6F455dQW8r6PbiboAxGCu5IW3mhF0szO/9HiAfX5RoMrfcMhBkFXrAKlxLF2gYXd3UQIn7gWnrLDdYbCL+4D+wY4zCNxH14Bw8YBBSk/jWhS5QIDAQAB",
+
+        "oauth2": {
+                "client_id": "128778967996-s5la1qpsgal5knces7itks2k2gdm4pl9.apps.googleusercontent.com",
+                "scopes": [
+                        "email",
+                        "profile",
+                        "https://www.googleapis.com/auth/drive"
+                ]
+        }
+}
