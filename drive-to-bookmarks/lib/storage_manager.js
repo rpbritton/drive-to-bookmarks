@@ -3,10 +3,16 @@
  */
 export function get_account(account_id) {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(account_id, storage => {
-            let account = storage[account_id];
+        /* Retrieve all the accounts. */
+        get_all_accounts()
+        .then(accounts => {
+            /* Find the account of the given id. */
+            let account = accounts.find(test_account => {
+                return (test_account.id == account_id)
+            });
 
-            if (account != null) {
+            /* Resolve if found. */
+            if (account) {
                 resolve(account);
             }
             else {
@@ -17,22 +23,19 @@ export function get_account(account_id) {
 }
 
 /*
- * Returns the IDs of all the stored accounts.
+ * Returns all of the stored accounts.
  */
 export function get_all_accounts() {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get(null, storage => {
-            let account_ids = [];
-
-            if (storage != null) {
-                for (let key in storage) {
-                    if (key.use == 'account') {
-                        account_ids.push();
-                    }
-                }
+        /* Get all the accounts from storage. */
+        chrome.storage.local.get('accounts', storage => {
+            /* Returns the accounts or an empty array. */
+            if (storage.accounts) {
+                resolve(storage.accounts);
             }
-
-            resolve(account_ids);
+            else {
+                resolve([]);
+            }
         });
     });
 }
@@ -43,22 +46,27 @@ export function get_all_accounts() {
  */
 export function save_account(account_id, account_properties) {
     return new Promise((resolve, reject) => {
-        let account;
+        /* Retrieve all the accounts. */
+        get_all_accounts()
+        .then(accounts => {
+            /* Finds the position of the previously saved account. */
+            let index = accounts.findIndex(test_account => {
+                return (test_account.id == account_id);
+            })
 
-        get_account(account_id)
-        .then(old_account => {
-            account = old_account;
-        })
-        .catch(error => {
-            account = {
-                'use': 'account'
-            };
-        })
-        .finally(() => {
-            Object.assign(account, account_properties);
+            /* If the account was found, update it. */
+            if (index > -1) {
+                Object.assign(accounts[index], account_properties);
+            }
+            /* If the account was not found, add it. */
+            else {
+                account_properties.id = account_id;
+                accounts.push(account_properties);
+            }
 
+            /* Save the new account array. */
             chrome.storage.local.set({
-                [account_id]: storage[account_id]
+                'accounts': accounts
             }, () => {
                 resolve();
             });
@@ -71,8 +79,25 @@ export function save_account(account_id, account_properties) {
  */
 export function remove_account(account_id) {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.remove(account_id, () => {
-            resolve();
+        /* Retrieve all the accounts. */
+        get_all_accounts()
+        .then(accounts => {
+            /* Find the index of the account to remove. */
+            let index = findIndex(accounts, test_account => {
+                return (test_account.id == account_id);
+            })
+
+            /* If found, remove it. */
+            if (index) {
+                accounts[index].splice(index, 1);
+            }
+
+            /* Save the new array. */
+            chrome.storage.local.set({
+                'accounts': accounts
+            }, () => {
+                resolve();
+            });
         });
     });
 }

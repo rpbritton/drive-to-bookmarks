@@ -46,11 +46,11 @@ export function add_account() {
             // Is this needed?
             // account.file_to_bookmark = {};
 
-            // /* Save the account to storage. */
-            // storage.save_account(account.id, account)
-            // .then(() => {
-            //     resolve(account.id);
-            // });
+            /* Save the account to storage. */
+            storage_manager.save_account(account.id, account)
+            .then(() => {
+                resolve(account.id);
+            });
         })
         .catch(error => {
             console.error('Adding user failed.');
