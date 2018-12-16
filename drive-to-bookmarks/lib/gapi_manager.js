@@ -1,10 +1,10 @@
-/* Modules. */
-import * as storage_manager from './storage_manager.js'
+// /* Modules. */
+// import * as storage_manager from './storage_manager.js'
 
 /* URLs used with the GoogleAPI. */
-const url = {
+const gapi_urls = {
     /* URL used for interacting with user accounts. */
-    'account': `https://accounts.google.com/o/oauth2/auth`
+    'new_token': `https://accounts.google.com/o/oauth2/auth`
         +`?response_type=token`
         +`&client_id=${encodeURIComponent(chrome.runtime.getManifest().oauth2.client_id)}`
         +`&scope=${encodeURIComponent(chrome.runtime.getManifest().oauth2.scopes.join(' '))}`
@@ -18,73 +18,168 @@ const url = {
 };
 
 /*
- * Opens up the google user account selector, allowing a user to be added.
+ * Used to check a gapi token, fetching a new one if need be.
+ *
+ * If details.interactive is true it may prompt the user (if necessary).
+ * If details.account is null it whille prompt to add a new account.
  */
-export function add_account() {
+export function token(details) {
     return new Promise((resolve, reject) => {
-        /* Launches the web authenticationer. */
-        get_new_token({
-            'interactive': true,
-            'url': `${url.account}&prompt=select_account`
-        })
-        .then(oauth => {
-            /* Fetch user info and root folder information. */
-            return Promise.all([
-                gapi_request(`${url.userinfo}?access_token=${oauth.token}`),
-                gapi_request(`${url.drive}/files/root?access_token=${oauth.token}`),
-                oauth
-            ]);
-        })
-        .then(result => {
-            /* Data retrieved. */
-            let [account, root_folder, oauth] = result;
+        /* Check if a new token is needed. */
+        if (details.account) {
+            if (details.account.token_expiration > Date.now() && !details.interactive) {
+                resolve(details.account);
+                return;
+            }
+        }
 
-            /* Including other info on the account. */
-            account.token = oauth.token;
-            account.token_expiration = Date.now() + oauth.expiration * 1000 - 60000;
-            account.root_id = root_folder.id;
-            // Is this needed?
-            // account.file_to_bookmark = {};
+        /* Create the url (whether to hint at a user or not). */
+        let url = gapi_urls.new_token;
+        if (details.account) {
+            url += `&login_hint=${details.account.id}`;
+        }
+        else {
+            url += `&prompt=select_account`;
+        }
 
-            /* Save the account to storage. */
-            storage_manager.save_account(account.id, account)
-            .then(() => {
-                resolve(account.id);
-            });
-        })
-        .catch(error => {
-            console.error('Adding user failed.');
-            reject();
+        /* Go get a token. */
+        chrome.identity.launchWebAuthFlow({
+            'interactive': details.interactive,
+            'url': url
+        }, response => {
+            /* oauth fail check. */
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError.message);
+                reject();
+                return;
+            }
+
+            /* Splits the response into url parameters. */
+            let params = {};
+            for (let raw_param of response.split('#')[1].split('&')) {
+                let split_param = raw_param.split('=');
+                params[split_param[0]] = split_param[1];
+            }
+
+            /* Make the account an object if it is not defined. */
+            if (!details.account) {
+                details.account = {};
+            }
+
+            /* update token information. */
+            details.account.token = params.access_token;
+            details.account.token_expiration = Date.now() + params.expires_in * 1000 - 60000;
+
+            /* Success, return the updated account. */
+            resolve(details.account);
         });
     });
 }
 
 /*
- * Revokes the apps access and removes the account from storage
+ * Update basic account info, like picture and email, and the account's
+ * root folder id.
  */
-export function remove_account(account_id) {
+export function update_info(account) {
     return new Promise((resolve, reject) => {
-        /* Retrieves the account token. */
-        get_token(account_id).then(token => {
-            /* Revokes the apps access. */
+        token({
+            'account': account,
+            'interactive': false
+        })
+        .then(account => {
             return Promise.all([
-                get_request(`${revoke_url}?token=${token}`).catch(error => {
-                    console.error('Could not revoke token.');
-                }),
-                storage_manager.remove_account(account_id).catch(error => {
-                    console.error('Could not remove account from storage.')
-                })
-            ]);
+                account,
+                gapi_request(`${gapi_urls.userinfo}?access_token=${account.token}`),
+                gapi_request(`${gapi_urls.drive}/files/root?access_token=${account.token}`),
+            ])
         })
-        .then(() => {
-            resolve();
-        })
-        .catch(error => {
-            /* Could not get token. */
-            reject();
+        .then(result => {
+            let [account, new_info, root_folder] = result;
+
+            Object.assign(account, new_info);
+            account.root_folder_id = root_folder.id;
+
+            resolve(account);
         });
     });
 }
+
+
+
+
+
+
+
+
+
+// /*
+//  * Opens up the google user account selector, allowing a user to be added.
+//  */
+// export function add_account() {
+//     return new Promise((resolve, reject) => {
+//         /* Launches the web authenticationer. */
+//         get_new_token({
+//             'interactive': true,
+//             'url': `${url.account}&prompt=select_account`
+//         })
+//         .then(oauth => {
+//             /* Fetch user info and root folder information. */
+//             return Promise.all([
+//                 gapi_request(`${url.userinfo}?access_token=${oauth.token}`),
+//                 gapi_request(`${url.drive}/files/root?access_token=${oauth.token}`),
+//                 oauth
+//             ]);
+//         })
+//         .then(result => {
+//             /* Data retrieved. */
+//             let [account, root_folder, oauth] = result;
+
+//             /* Including other info on the account. */
+//             account.token = oauth.token;
+//             account.token_expiration = Date.now() + oauth.expiration * 1000 - 60000;
+//             account.root_id = root_folder.id;
+//             // Is this needed?
+//             // account.file_to_bookmark = {};
+
+//             /* Save the account to storage. */
+//             storage_manager.save_account(account.id, account)
+//             .then(() => {
+//                 resolve(account.id);
+//             });
+//         })
+//         .catch(error => {
+//             console.error('Adding user failed.');
+//             reject();
+//         });
+//     });
+// }
+
+// /*
+//  * Revokes the apps access and removes the account from storage
+//  */
+// export function remove_account(account_id) {
+//     return new Promise((resolve, reject) => {
+//         /* Retrieves the account token. */
+//         get_token(account_id).then(token => {
+//             /* Revokes the apps access. */
+//             return Promise.all([
+//                 get_request(`${revoke_url}?token=${token}`).catch(error => {
+//                     console.error('Could not revoke token.');
+//                 }),
+//                 storage_manager.remove_account(account_id).catch(error => {
+//                     console.error('Could not remove account from storage.')
+//                 })
+//             ]);
+//         })
+//         .then(() => {
+//             resolve();
+//         })
+//         .catch(error => {
+//             /* Could not get token. */
+//             reject();
+//         });
+//     });
+// }
 
 // TODO: Is this all necessary?
 
@@ -161,80 +256,80 @@ export function remove_account(account_id) {
 //     });
 // }
 
-/*
- * Gets the token from storage. It may need to get a new token if the current
- * one has expired.
- */
-function get_token(account_id) {
-    return new Promise((resolve, reject) => {
-        /* Fetches the account from storage. */
-        storage_manager.get_account(account_id)
-        .then(account => {
-            /* Checks if the oauth token is active. If so, returns it. */
-            if (Date.now() < account.token_expiration) {
-                resolve(account.token);
-                return;
-            }
+// /*
+//  * Gets the token from storage. It may need to get a new token if the current
+//  * one has expired.
+//  */
+// function get_token(account_id) {
+//     return new Promise((resolve, reject) => {
+//         /* Fetches the account from storage. */
+//         storage_manager.get_account(account_id)
+//         .then(account => {
+//             /* Checks if the oauth token is active. If so, returns it. */
+//             if (Date.now() < account.token_expiration) {
+//                 resolve(account.token);
+//                 return;
+//             }
 
-            /* Oauth token was not active, must get a new one. */
-            get_new_token({
-                'url': `${accounts_url}&login_hint=${account_id}`,
-                'interactive': false
-            })
-            .then(oauth => {
-                /* New token successfully retrieved, save it. */
-                return Promise.all([
-                    storage_manager.save_account(account.id, {
-                        'token': oauth.token,
-                        'token_expiration': oauth.expiration
-                    }),
-                    oauth.token
-                ]);
-            })
-            .then(result => {
-                /* Successfully saved, now returning the token. */
-                resolve(result[1]);
-            })
-            .catch(error => {
-                console.error('Failed to get a new token.');
-                reject();
-            });
-        })
-        .catch(error => {
-            reject();
-        });
-    });
-}
+//             /* Oauth token was not active, must get a new one. */
+//             get_new_token({
+//                 'url': `${accounts_url}&login_hint=${account_id}`,
+//                 'interactive': false
+//             })
+//             .then(oauth => {
+//                 /* New token successfully retrieved, save it. */
+//                 return Promise.all([
+//                     storage_manager.save_account(account.id, {
+//                         'token': oauth.token,
+//                         'token_expiration': oauth.expiration
+//                     }),
+//                     oauth.token
+//                 ]);
+//             })
+//             .then(result => {
+//                 /* Successfully saved, now returning the token. */
+//                 resolve(result[1]);
+//             })
+//             .catch(error => {
+//                 console.error('Failed to get a new token.');
+//                 reject();
+//             });
+//         })
+//         .catch(error => {
+//             reject();
+//         });
+//     });
+// }
 
-/*
- * Fetches a new token, often used because the old one expired.
- */
-function get_new_token(details) {
-    return new Promise((resolve, reject) => {
-        chrome.identity.launchWebAuthFlow(details, response => {
-            /* oauth fail check. */
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError.message);
-                reject();
-                return;
-            }
+// /*
+//  * Fetches a new token, often used because the old one expired.
+//  */
+// function get_new_token(details) {
+//     return new Promise((resolve, reject) => {
+//         chrome.identity.launchWebAuthFlow(details, response => {
+//             /* oauth fail check. */
+//             if (chrome.runtime.lastError) {
+//                 console.error(chrome.runtime.lastError.message);
+//                 reject();
+//                 return;
+//             }
 
-            /* Splits the response into url parameters. */
-            let params = {};
-            for (let raw_param of response.split('#')[1].split('&')) {
-                let split_param = raw_param.split('=');
-                params[split_param[0]] = split_param[1];
-            }
+//             /* Splits the response into url parameters. */
+//             let params = {};
+//             for (let raw_param of response.split('#')[1].split('&')) {
+//                 let split_param = raw_param.split('=');
+//                 params[split_param[0]] = split_param[1];
+//             }
 
-            /* Success, return the token and expiration. For saftey/delay
-            expiration returned as a minute less. */
-            resolve({
-                'token': params.access_token,
-                'expiration': Date.now() + params.expires_in * 1000 - 60000
-            });
-        });
-    });
-}
+//             /* Success, return the token and expiration. For saftey/delay
+//             expiration returned as a minute less. */
+//             resolve({
+//                 'token': params.access_token,
+//                 'expiration': Date.now() + params.expires_in * 1000 - 60000
+//             });
+//         });
+//     });
+// }
 
 /*
  * Performs a get request
