@@ -18,10 +18,15 @@ export function add() {
         })
         .then(account => {
             /* Saves the account. */
-            return save(account.id, account);
+            return Promise.all([
+                account,
+                save(account.id, account)
+            ]);
         })
         /* Success. */
-        .then(resolve)
+        .then(result => {
+            resolve(result[0]);
+        })
         .catch(error => {
             /* Error somewhere. */
             console.error('Could not add a new account');
