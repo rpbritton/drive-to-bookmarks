@@ -14,7 +14,7 @@ const gapi_urls = {
     /* Drive API. */
     'drive': `https://www.googleapis.com/drive/v3`,
     /* Revoke url, used when removing a user account. */
-    'url_revoke': `https://accounts.google.com/o/oauth2/revoke`
+    'revoke': `https://accounts.google.com/o/oauth2/revoke`
 };
 
 /*
@@ -100,6 +100,25 @@ export function update_info(account) {
             account.root_folder_id = root_folder.id;
 
             resolve(account);
+        });
+    });
+}
+
+export function remove(account) {
+    return new Promise((resolve, reject) => {
+        token({
+            'account': account,
+            'interactive': false
+        })
+        .then(account => {
+            return gapi_request(`${gapi_urls.revoke}?token=${account.token}`);
+        })
+        .then(result => {
+            resolve();
+        })
+        .catch(error => {
+            console.error('Could not revoke access');
+            reject();
         });
     });
 }

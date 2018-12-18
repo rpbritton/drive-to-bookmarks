@@ -3,6 +3,7 @@
 // import * as storage_manager from './lib/storage_manager.js'
 // import * as nametag_manager from './lib/nametag_manager.js'
 import * as account_manager from './lib/account_manager.js'
+import { AccountLabelMaker } from './lib/account_label_maker.js'
 
 // chrome.storage.local.clear();
 
@@ -13,6 +14,7 @@ document.getElementById('btn_options').addEventListener('click', ev => {
 
 // /* Add the account labels. */
 // nametag_manager.update();
+var account_label_maker = new AccountLabelMaker(document.getElementById('accounts_wrapper'));
 
 /* Add account button. */
 document.getElementById('btn_add_account').addEventListener('click', ev => {

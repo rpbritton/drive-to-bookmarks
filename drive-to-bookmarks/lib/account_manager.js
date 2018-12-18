@@ -78,6 +78,14 @@ function save_all(accounts) {
             'accounts': accounts
         })
         .then(() => {
+            let event = new CustomEvent('accounts_changed', {
+                'detail': {
+                    'accounts': accounts
+                }
+            });
+
+            document.dispatchEvent(event);
+
             /* Success. */
             resolve();
         })
@@ -147,28 +155,28 @@ export function get_all() {
     });
 }
 
-// /*
-//  * Remove an account from storage and revoke access.
-//  */
-// export function remove(account_id) {
-//     return new Promise((resolve, reject) => {
-//         get_all()
-//         .then(accounts => {
-//             /* Finds the position of the account in the array. */
-//             let index = accounts.findIndex(test_account => {
-//                 return (test_account.id == account_id);
-//             });
+/*
+ * Remove an account from storage and revoke access.
+ */
+export function remove(account_id) {
+    return new Promise((resolve, reject) => {
+        get_all()
+        .then(accounts => {
+            /* Finds the position of the account in the array. */
+            let account_i = accounts.findIndex(test_account => {
+                return (test_account.id == account_id);
+            });
 
-//             /* Account was found, remove it. */
-//             if (index > -1) {
-//                 accounts.splice(index, 1);
-//             }
+            let account = accounts[account_i];
 
-//             /* Saves the accounts. */
-//             save_all(accounts)
-//             .then(() => {
-//                 resolve();
-//             });
-//         })
-//     });
-// }
+            accounts.splice(account_i, 1);
+
+            return Promise.all([
+                // gapi_manager.remove(account),
+                save_all(accounts)
+            ]);
+        })
+        .then(() => {
+        })
+    });
+}

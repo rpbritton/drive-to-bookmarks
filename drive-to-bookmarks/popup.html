@@ -11,8 +11,14 @@ html,body {
 
     <body>
         <button id="btn_options">Options</button>
-        <div id="wrapper_accounts">
-
+        <div id="accounts_wrapper">
+            <template id="account_template">
+                <div>
+                    <span account_label_text="name"></span>
+                    <span account_label_text="email"></span>
+                    <button account_label_event="click" account_label_action="remove">Remove Account</button>
+                </div>
+            </template>
         </div>
         <button id="btn_add_account">Add Account</button>
         <button id="btn_list_accounts">List Accounts (console)</button>
