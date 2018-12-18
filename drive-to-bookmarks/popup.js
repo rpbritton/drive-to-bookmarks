@@ -12,9 +12,16 @@ document.getElementById('btn_options').addEventListener('click', ev => {
     chrome.runtime.openOptionsPage();
 });
 
-// /* Add the account labels. */
-// nametag_manager.update();
+/* Add the account labels. */
 var account_label_maker = new AccountLabelMaker(document.getElementById('accounts_wrapper'));
+
+var port = chrome.extension.connect({
+    name: 'test'
+});
+port.onMessage.addListener(msg => {
+    console.log('and here we are!');
+});
+port.postMessage('I\'m alive');
 
 /* Add account button. */
 document.getElementById('btn_add_account').addEventListener('click', ev => {
