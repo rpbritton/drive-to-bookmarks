@@ -2,10 +2,34 @@
 import * as gapi_manager from './gapi_manager.js'
 import * as storage_manager from './storage_manager.js'
 
+export class AccountManager {
+    constructor() {
+        chrome.extension.onConnect.addListener(port => {
+            if (port.name == 'account_ui_manager') {
+                port.onMessage.addListener(msg => {
+                    switch (msg.action) {
+                        case 'add':
+                            add()
+                            .then(account => {
+                                port.postMessage({
+                                    'account': account
+                                });
+                            });
+                            break;
+                    }
+
+                    // do_action(msg.action)
+                    // port.postMessage('wow');
+                });
+            }
+        });
+    }
+}
+
 /*
- * Add an account, first through gapi then to storage.
- */
-export function add() {
+* Add an account, first through gapi then to storage.
+*/
+function add() {
     return new Promise((resolve, reject) => {
         /* Gets a new token by interacting with the user. */
         gapi_manager.token({
@@ -36,9 +60,9 @@ export function add() {
 }
 
 /*
- * Saves an account to storage, either overwrites or adds.
- */
-export function save(account_id, account_info) {
+* Saves an account to storage, either overwrites or adds.
+*/
+function save(account_id, account_info) {
     return new Promise((resolve, reject) => {
         /* Fetch all accounts. */
         get_all()
@@ -69,33 +93,9 @@ export function save(account_id, account_info) {
 }
 
 /*
- * Saves all accounts in the correct storage location.
- */
-function save_all(accounts) {
-    return new Promise((resolve, reject) => {
-        /* Overwrites the account array in storage with new. */
-        storage_manager.set({
-            'accounts': accounts
-        })
-        .then(() => {
-            let event = new CustomEvent('accounts_changed', {
-                'detail': {
-                    'accounts': accounts
-                }
-            });
-
-            document.dispatchEvent(event);
-
-            /* Success. */
-            resolve();
-        })
-    })
-}
-
-/*
- * Refreshes account info and saves it to storage.
- */
-export function refresh_info(account_id) {
+* Refreshes account info and saves it to storage.
+*/
+function refresh_info(account_id) {
     return new Promise((resolve, reject) => {
         /* Gets the current account information. */
         get(account_id)
@@ -115,9 +115,9 @@ export function refresh_info(account_id) {
 }
 
 /*
- * Get account info based off the account id.
- */
-export function get(account_id) {
+* Get account info based off the account id.
+*/
+function get(account_id) {
     return new Promise((resolve, reject) => {
         storage_manager.get('accounts')
         .then(accounts => {
@@ -139,9 +139,9 @@ export function get(account_id) {
 }
 
 /*
- * Get all the stored accounts.
- */
-export function get_all() {
+* Get all the stored accounts.
+*/
+function get_all() {
     return new Promise((resolve, reject) => {
         storage_manager.get('accounts')
         .then(accounts => {
@@ -156,9 +156,9 @@ export function get_all() {
 }
 
 /*
- * Remove an account from storage and revoke access.
- */
-export function remove(account_id) {
+* Remove an account from storage and revoke access.
+*/
+function remove(account_id) {
     return new Promise((resolve, reject) => {
         get_all()
         .then(accounts => {
@@ -179,4 +179,29 @@ export function remove(account_id) {
         .then(() => {
         })
     });
+}
+
+
+/*
+* Saves all accounts in the correct storage location.
+*/
+function save_all(accounts) {
+    return new Promise((resolve, reject) => {
+        /* Overwrites the account array in storage with new. */
+        storage_manager.set({
+            'accounts': accounts
+        })
+        .then(() => {
+            let event = new CustomEvent('accounts_changed', {
+                'detail': {
+                    'accounts': accounts
+                }
+            });
+
+            document.dispatchEvent(event);
+
+            /* Success. */
+            resolve();
+        })
+    })
 }

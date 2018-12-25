@@ -1,20 +1,15 @@
 /* Modules. */
 import * as account_manager from './account_manager.js'
 
-export class AccountLabelMaker {
-    constructor(container) {
-        this.container = container;
-        this.template = container.getElementsByTagName('template')[0];
-        this.labels = [];
-
-        document.addEventListener('accounts_changed', event => {
-            this.update(event.detail.accounts);
+export class AccountUIManager {
+    constructor() {
+        this.port = chrome.extension.connect({
+            name: 'account_ui_manager'
         });
-
-        account_manager.get_all()
-        .then(accounts => {
-            this.update(accounts);
+        port.onMessage.addListener(msg => {
+            console.log('and here we are!');
         });
+        port.postMessage('I\'m alive');
     }
 
     update(accounts) {

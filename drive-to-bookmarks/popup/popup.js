@@ -2,8 +2,8 @@
 // import * as gapi_manager from './lib/gapi_manager.js'
 // import * as storage_manager from './lib/storage_manager.js'
 // import * as nametag_manager from './lib/nametag_manager.js'
-import * as account_manager from './lib/account_manager.js'
-import { AccountLabelMaker } from './lib/account_label_maker.js'
+import * as account_manager from '../lib/js/account_manager.js'
+import { AccountLabelMaker } from '../lib/js/account_ui_manager.js'
 
 // chrome.storage.local.clear();
 

@@ -1,5 +1,5 @@
 /* Modules. */
-import * as account_manager from "./lib/account_manager.js"
+import * as account_manager from "../lib/js/account_manager.js"
 
 chrome.extension.onConnect.addListener(port => {
     port.onMessage.addListener(msg => {
