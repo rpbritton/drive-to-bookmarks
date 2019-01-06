@@ -1,14 +1,4 @@
 /* Modules. */
-import * as account_manager from "../lib/js/account_manager.js"
+import { AccountManager } from "../lib/js/account_manager.js"
 
-chrome.extension.onConnect.addListener(port => {
-    port.onMessage.addListener(msg => {
-        console.log('here: ' +msg);
-        port.postMessage('wow');
-    });
-});
-
-// gapi_manager.add_account()
-// .catch(error => {
-//     /* FAIL. */
-// });
+window.account_manager = new AccountManager();
