@@ -1,6 +1,3 @@
-// /* Modules. */
-// import * as storage_manager from './storage_manager.js'
-
 /* URLs used with the GoogleAPI. */
 const gapi_urls = {
     /* URL used for interacting with user accounts. */
@@ -18,109 +15,118 @@ const gapi_urls = {
 };
 
 /*
- * Used to check a gapi token, fetching a new one if need be.
- *
- * If details.interactive is true it may prompt the user (if necessary).
- * If details.account is null it whille prompt to add a new account.
+ * Simple manager class for google api functions.
  */
-export function token(details) {
-    return new Promise((resolve, reject) => {
-        /* Check if a new token is needed. */
-        if (details.account) {
-            if (details.account.token_expiration > Date.now() && !details.interactive) {
+export class GAPIManager {
+    /*
+    * Used to check a gapi token, fetching a new one if need be.
+    *
+    * If details.interactive is true it may prompt the user (if necessary).
+    * If details.account is null it will try to add a new account.
+    */
+    get_token(details) {
+        return new Promise((resolve, reject) => {
+            /* Check if a new token is needed. */
+            if (details.account) {
+                if (details.account.token_expiration > Date.now() && !details.interactive) {
+                    resolve(details.account);
+                    return;
+                }
+            }
+
+            /* Create the url (whether to hint at a user or not). */
+            let url = gapi_urls.new_token;
+            if (details.account) {
+                url += `&login_hint=${details.account.id}`;
+            }
+            else {
+                url += `&prompt=select_account`;
+            }
+
+            /* Go get a token. */
+            chrome.identity.launchWebAuthFlow({
+                'interactive': details.interactive,
+                'url': url
+            }, response => {
+                /* oauth fail check. */
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError.message);
+                    reject();
+                    return;
+                }
+
+                /* Splits the response into url parameters. */
+                let params = {};
+                for (let raw_param of response.split('#')[1].split('&')) {
+                    let split_param = raw_param.split('=');
+                    params[split_param[0]] = split_param[1];
+                }
+
+                /* Make the account an object if it is not defined. */
+                if (!details.account) {
+                    details.account = {};
+                }
+
+                /* update token information. */
+                details.account.token = params.access_token;
+                details.account.token_expiration = Date.now() + params.expires_in * 1000 - 60000;
+
+                /* Success, return the updated account. */
                 resolve(details.account);
-                return;
-            }
-        }
+            });
+        });
+    }
 
-        /* Create the url (whether to hint at a user or not). */
-        let url = gapi_urls.new_token;
-        if (details.account) {
-            url += `&login_hint=${details.account.id}`;
-        }
-        else {
-            url += `&prompt=select_account`;
-        }
+    /*
+    * Update basic account info, like picture and email, and the account's
+    * root folder id.
+    */
+    update_info(account) {
+        return new Promise((resolve, reject) => {
+            this.get_token({
+                'account': account,
+                'interactive': false
+            })
+            .then(account => {
+                return Promise.all([
+                    account,
+                    gapi_request(`${gapi_urls.userinfo}?access_token=${account.token}`),
+                    gapi_request(`${gapi_urls.drive}/files/root?access_token=${account.token}`),
+                ])
+            })
+            .then(result => {
+                let [account, new_info, root_folder] = result;
 
-        /* Go get a token. */
-        chrome.identity.launchWebAuthFlow({
-            'interactive': details.interactive,
-            'url': url
-        }, response => {
-            /* oauth fail check. */
-            if (chrome.runtime.lastError) {
-                console.error(chrome.runtime.lastError.message);
+                Object.assign(account, new_info);
+                account.root_folder_id = root_folder.id;
+
+                resolve(account);
+            })
+            .catch(error => {
+                console.error('Could not update info');
                 reject();
-                return;
-            }
-
-            /* Splits the response into url parameters. */
-            let params = {};
-            for (let raw_param of response.split('#')[1].split('&')) {
-                let split_param = raw_param.split('=');
-                params[split_param[0]] = split_param[1];
-            }
-
-            /* Make the account an object if it is not defined. */
-            if (!details.account) {
-                details.account = {};
-            }
-
-            /* update token information. */
-            details.account.token = params.access_token;
-            details.account.token_expiration = Date.now() + params.expires_in * 1000 - 60000;
-
-            /* Success, return the updated account. */
-            resolve(details.account);
+            });
         });
-    });
-}
+    }
 
-/*
- * Update basic account info, like picture and email, and the account's
- * root folder id.
- */
-export function update_info(account) {
-    return new Promise((resolve, reject) => {
-        token({
-            'account': account,
-            'interactive': false
-        })
-        .then(account => {
-            return Promise.all([
-                account,
-                gapi_request(`${gapi_urls.userinfo}?access_token=${account.token}`),
-                gapi_request(`${gapi_urls.drive}/files/root?access_token=${account.token}`),
-            ])
-        })
-        .then(result => {
-            let [account, new_info, root_folder] = result;
-
-            Object.assign(account, new_info);
-            account.root_folder_id = root_folder.id;
-
-            resolve(account);
+    remove(account) {
+        return new Promise((resolve, reject) => {
+            this.get_token({
+                'account': account,
+                'interactive': false
+            })
+            .then(account => {
+                return gapi_request(`${gapi_urls.revoke}?token=${account.token}`);
+            })
+            .then(result => {
+                resolve();
+            })
+            .catch(error => {
+                console.error('Could not revoke access');
+                reject();
+            });
         });
-    });
-}
-
-export function remove(account) {
-    return new Promise((resolve, reject) => {
-        token({
-            'account': account,
-            'interactive': false
-        })
-        .then(account => {
-            return gapi_request(`${gapi_urls.revoke}?token=${account.token}`);
-        })
-        .then(result => {
-            resolve();
-        })
-        .catch(error => {
-            console.error('Could not revoke access');
-            reject();
-        });
-    });
+    }
 }
 
 

@@ -1,24 +1,32 @@
 /* Modules. */
-import * as gapi_manager from './gapi_manager.js'
-import * as storage_manager from './storage_manager.js'
+import { GAPIManager } from './gapi_manager.js'
+import { StorageManager } from './storage_manager.js'
 
 /*
  * Account manager class.
  */
 export class AccountManager {
     /*
+     * Simple constructor to initalize storage and gapi managers.
+     */
+    constructor() {
+        this.gapi_manager = new GAPIManager();
+        this.storage_manager = new StorageManager();
+    }
+
+    /*
     * Add an account, first through gapi then to storage.
     */
     add() {
         return new Promise((resolve, reject) => {
             /* Gets a new token by interacting with the user. */
-            gapi_manager.token({
+            this.gapi_manager.get_token({
                 'account': null,
                 'interactive': true
             })
             .then(empty_account => {
                 /* Gets account info. */
-                return gapi_manager.update_info(empty_account);
+                return this.gapi_manager.update_info(empty_account);
             })
             .then(account => {
                 /* Saves the account. */
@@ -40,7 +48,7 @@ export class AccountManager {
     }
 
     /*
-    * Saves an account to storage, either overwrites or adds.
+    * Saves an account to storage, either overwrites or adds keys.
     */
     save(account_id, account_info) {
         return new Promise((resolve, reject) => {
@@ -82,7 +90,7 @@ export class AccountManager {
     overwrite(accounts) {
         return new Promise((resolve, reject) => {
             /* Overwrites the account array in storage with new. */
-            storage_manager.set({
+            this.storage_manager.set({
                 'accounts': accounts
             })
             .then(() => {
@@ -109,7 +117,7 @@ export class AccountManager {
             this.get(account_id)
             .then(account => {
                 /* Updates the account information. */
-                return gapi_manager.update_info(account);
+                return this.gapi_manager.update_info(account);
             })
             .then(updated_account => {
                 /* Saves the account information. */
@@ -127,7 +135,7 @@ export class AccountManager {
     */
     get(account_id) {
         return new Promise((resolve, reject) => {
-            storage_manager.get('accounts')
+            this.storage_manager.get('accounts')
             .then(accounts => {
                 /* Find the account in the array. */
                 let account = accounts.find(test_account => {
@@ -151,7 +159,7 @@ export class AccountManager {
     */
     get_all() {
         return new Promise((resolve, reject) => {
-            storage_manager.get('accounts')
+            this.storage_manager.get('accounts')
             .then(accounts => {
                 /* Create array if it there are no accounts. */
                 if (!accounts) {
@@ -184,8 +192,8 @@ export class AccountManager {
                 accounts.splice(account_i, 1);
 
                 return Promise.all([
-                    // gapi_manager.remove(account),
-                    overwrite(accounts)
+                    // this.gapi_manager.remove(account),
+                    this.overwrite(accounts)
                 ]);
             })
             .then(() => {

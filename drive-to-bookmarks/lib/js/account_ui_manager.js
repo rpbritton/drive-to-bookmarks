@@ -8,7 +8,7 @@ export class AccountUIManager {
     constructor() {
         chrome.extension.getBackgroundPage().account_manager.get_all()
         .then(accounts => {
-            this.update(accounts);
+            this.setup(accounts);
         });
     }
 
@@ -18,6 +18,13 @@ export class AccountUIManager {
      */
     update(accounts) {
         console.log(accounts);
+    }
+
+    /*
+    * Initial basic setup (adds button event listeners)
+    */
+    setup(accounts) {
+        this.update(accounts);
     }
 }
 
