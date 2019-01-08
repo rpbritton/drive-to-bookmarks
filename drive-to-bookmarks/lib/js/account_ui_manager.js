@@ -24,6 +24,8 @@ export class AccountUIManager {
     * Initial basic setup (adds button event listeners)
     */
     setup(accounts) {
+        
+
         this.update(accounts);
     }
 }
