@@ -32,7 +32,7 @@ export class AccountManager {
                 /* Saves the account. */
                 return Promise.all([
                     account,
-                    this.save(account.id, account)
+                    this.update_storage(account.id, account)
                 ]);
             })
             /* Success. */
@@ -48,32 +48,56 @@ export class AccountManager {
     }
 
     /*
-    * Saves an account to storage, either overwrites or adds keys.
+    * Will remove, update, or add an account to storage.
     */
-    save(account_id, account_info) {
+    update_storage(account_id, account_info) {
         return new Promise((resolve, reject) => {
             /* Fetch all accounts. */
             this.get_all()
             .then(accounts => {
                 /* Finds the position of the account in the array. */
-                let index = accounts.findIndex(test_account => {
+                let account_i = accounts.findIndex(test_account => {
                     return (test_account.id == account_id);
                 });
 
-                /* Account was found, update it. */
-                if (index > -1) {
-                    Object.assign(accounts[index], account_info);
+                let change = {};
+
+                if (account_i > -1) {
+                    if (typeof account_info !== 'undefined') {
+                        accounts[account_i] = account_info;
+
+                        change.update = accounts[account_i];
+                    }
+                    else {
+                        change.remove = accounts[account_i];
+
+                        accounts.splice(account_i, 1);
+                    }
                 }
-                /* Account was not found, add it. */
                 else {
-                    account_info.id = account_id;
-                    accounts.push(account_info);
+                    if (typeof account_info !== 'undefined') {
+                        accounts.push(account_info);
+                        accounts[accounts.length - 1].id = account_id;
+
+                        change.add = accounts[accounts.length - 1];
+                    }
                 }
 
                 /* Save all the accounts. */
-                return this.overwrite(accounts);
+                return Promise.all([
+                    change,
+                    this.storage_manager.set({
+                        'accounts': accounts
+                    })
+                ]);
             })
-            .then(() => {
+            .then(result => {
+                for (let view of chrome.extension.getViews()) {
+                    if (view.account_ui_manager) {
+                        view.account_ui_manager.update(result[0]);
+                    }
+                }
+
                 /* Success. */
                 resolve();
             })
@@ -82,30 +106,6 @@ export class AccountManager {
                 reject();
             });
         });
-    }
-
-    /*
-    * Saves all accounts in the correct storage location.
-    */
-    overwrite(accounts) {
-        return new Promise((resolve, reject) => {
-            /* Overwrites the account array in storage with new. */
-            this.storage_manager.set({
-                'accounts': accounts
-            })
-            .then(() => {
-                /* Notify all views that accounts has been changed. */
-                for (let view of chrome.extension.getViews()) {
-                    console.log(view);
-                    if (view.account_ui_manager) {
-                        view.account_ui_manager.update(accounts);
-                    }
-                }
-
-                /* Success. */
-                resolve();
-            })
-        })
     }
 
     /*
@@ -121,9 +121,12 @@ export class AccountManager {
             })
             .then(updated_account => {
                 /* Saves the account information. */
-                return this.save(account_id, updated_account);
+                return Promise.all([
+                    updated_account,
+                    this.update_storage(account_id, updated_account)
+                ]);
             })
-            .then(() => {
+            .then(result => {
                 /* Success. */
                 resolve();
             });
@@ -180,24 +183,19 @@ export class AccountManager {
     */
     remove(account_id) {
         return new Promise((resolve, reject) => {
-            this.get_all()
-            .then(accounts => {
-                /* Finds the position of the account in the array. */
-                let account_i = accounts.findIndex(test_account => {
-                    return (test_account.id == account_id);
-                });
-
-                let account = accounts[account_i];
-
-                accounts.splice(account_i, 1);
-
+            this.get(account_id)
+            .then(account => {
                 return Promise.all([
                     // this.gapi_manager.remove(account),
-                    this.overwrite(accounts)
+                    this.update_storage(account_id)
                 ]);
             })
-            .then(() => {
+            .then(result => {
+                /* Success. */
+                resolve();
             });
         });
     }
 }
+
+
