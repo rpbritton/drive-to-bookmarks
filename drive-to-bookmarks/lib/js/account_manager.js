@@ -32,71 +32,53 @@ export class AccountManager {
                 /* Saves the account. */
                 return Promise.all([
                     account,
-                    this.update_storage(account.id, account)
+                    this.save(account.id, account)
                 ]);
             })
             /* Success. */
             .then(result => {
                 resolve(result[0]);
             })
-            .catch(error => {
+            .catch(e => {
+                console.error(e);
                 /* Error somewhere. */
-                console.error('Could not add a new account');
-                reject();
+                reject(Error('Could not add a new account'));
             });
         });
     }
 
     /*
-    * Will remove, update, or add an account to storage.
+    * Save account to storage. It will add it if it does not exist.
     */
-    update_storage(account_id, account_info) {
+    save(account_id, account_info = {}, replace = false) {
         return new Promise((resolve, reject) => {
             /* Fetch all accounts. */
             this.get_all()
             .then(accounts => {
+                /* Assign the id, just in case. */
+                account_info.id = account_id;
+
                 /* Finds the position of the account in the array. */
                 let account_i = accounts.findIndex(test_account => {
                     return (test_account.id == account_id);
                 });
 
-                let change = {};
-
                 if (account_i > -1) {
-                    if (typeof account_info !== 'undefined') {
+                    if (replace) {
                         accounts[account_i] = account_info;
-
-                        change.update = accounts[account_i];
                     }
                     else {
-                        change.remove = accounts[account_i];
-
-                        accounts.splice(account_i, 1);
+                        Object.assign(accounts[account_i], account_info);
                     }
                 }
                 else {
-                    if (typeof account_info !== 'undefined') {
-                        accounts.push(account_info);
-                        accounts[accounts.length - 1].id = account_id;
-
-                        change.add = accounts[accounts.length - 1];
-                    }
+                    accounts.push(account_info);
                 }
 
                 /* Save all the accounts. */
-                return Promise.all([
-                    change,
-                    this.storage_manager.set({
-                        'accounts': accounts
-                    })
-                ]);
+                return this._overwrite(accounts);
             })
-            .then(result => {
-                for (let view of chrome.extension.getViews()) {
-                    if (view.account_ui_manager) {
-                        view.account_ui_manager.update(result[0]);
-                    }
-                }
+            .then(() => {
 
                 /* Success. */
                 resolve();
@@ -105,6 +87,27 @@ export class AccountManager {
                 console.error('Could not save the account');
                 reject();
             });
+        });
+    }
+
+    _overwrite(accounts) {
+        return new Promise((resolve, reject) => {
+            this.storage_manager.set({
+                'accounts': accounts
+            })
+            .then(result => {
+                for (let view of chrome.extension.getViews()) {
+                    if (view.account_ui_manager) {
+                        view.account_ui_manager.update(accounts);
+                    }
+                }
+
+                resolve();
+            })
+            .catch(e => {
+                console.error(e);
+                reject(Error('Could not save accounts to storage.'));
+            })
         });
     }
 
@@ -121,10 +124,7 @@ export class AccountManager {
             })
             .then(updated_account => {
                 /* Saves the account information. */
-                return Promise.all([
-                    updated_account,
-                    this.update_storage(account_id, updated_account)
-                ]);
+                return this.save(account_id, updated_account);
             })
             .then(result => {
                 /* Success. */
@@ -150,8 +150,7 @@ export class AccountManager {
                     resolve(account);
                 }
                 else {
-                    console.error('Account not found in storage.');
-                    reject();
+                    reject(Error('Account not found in storage.'));
                 }
             })
         });
@@ -171,9 +170,9 @@ export class AccountManager {
 
                 resolve(accounts);
             })
-            .catch(error => {
-                console.error('Could not get all the accounts');
-                reject();
+            .catch(e => {
+                console.error(e);
+                reject(Error('Could not get all the accounts'));
             });
         });
     }
@@ -183,16 +182,23 @@ export class AccountManager {
     */
     remove(account_id) {
         return new Promise((resolve, reject) => {
-            this.get(account_id)
-            .then(account => {
-                return Promise.all([
-                    // this.gapi_manager.remove(account),
-                    this.update_storage(account_id)
-                ]);
+            this.get_all()
+            .then(accounts => {
+                let account_i = accounts.findIndex(test_account => {
+                    return (test_account.id == account_id);
+                });
+
+                accounts.splice(account_i, 1);
+
+                return this._overwrite(accounts);
             })
             .then(result => {
                 /* Success. */
                 resolve();
+            })
+            .catch(e => {
+                console.error(e);
+                reject(Error('Could not remove account from storage.'));
             });
         });
     }

@@ -10,10 +10,34 @@ export class AccountUIManager {
 
         this.prev_accounts = [];
 
-        this.setup();
+        this.account_manager.get_all()
+        .then(accounts => {
+            this.prev_accounts = accounts;
+            this._init();
+        });
     }
 
-    setup(account = {}, el = document.body, check_children = true) {
+    update(accounts) {
+        for (let account_i in accounts) {
+            let prev_account_i = this.prev_accounts.findIndex(test_prev_account => {
+                return (test_prev_account.id == accounts[account_i].id);
+            });
+
+            if (prev_account_i > -1) {
+                this._labels_update(accounts[account_i]);
+                this.prev_accounts.splice(prev_account_i, 1);
+            }
+            else {
+                this._labels_add(accounts[account_i]);
+            }
+        }
+
+        this._labels_remove(this.prev_accounts);
+
+        this.prev_accounts = accounts;
+    }
+
+    _init(account = {}, el = document.body, check_children = true) {
         let targets = [];
         if (check_children) {
             targets = Array.prototype.slice.call(
@@ -25,6 +49,7 @@ export class AccountUIManager {
 
         for (let target of targets) {
             target.addEventListener(target.getAttribute('account_ui_event'), event => {
+                /* TODO: SMOOTH THIS OUT WITH THE BOTTOM THING. */
                 switch (target.getAttribute('account_ui_action')) {
                     case 'add':
                         this.account_manager.add();
@@ -33,36 +58,30 @@ export class AccountUIManager {
                     case 'remove':
                         if (account.id) {
                             this.account_manager.remove(account.id);
-                            // this.labels_remove(account);
                         }
                         break;
                 }
+
+                // let action;
+
+                // switch (target.getAttribute('account_ui_action')) {
+                //     case 'add': action = this.account_manager.add; break;
+                //     case 'remove': action = this.account_manager.remove; break;
+                // }
+
+                // if (action) {
+                //     action(account)
+                //     .then(result => {
+                //         console.log('yay it finished');
+                //     });
+                // }
             });
         }
 
-        this.account_manager.get_all()
-        .then(accounts => {
-            this.labels_add(accounts, el, check_children);
-        });
+        this._labels_add(this.prev_accounts, el, check_children);
     }
 
-    update(details) {
-        for (let action in details) {
-            switch (action) {
-                case 'add':
-                    this.labels_add(details[action]);
-                    break;
-                case 'update':
-                    this.labels_update(details[action]);
-                    break;
-                case 'remove':
-                    this.labels_remove(details[action]);
-                    break;
-            }
-        }
-    }
-
-    labels_add(accounts, el = document.body, check_children = true) {
+    _labels_add(accounts, el = document.body, check_children = true) {
         if (!Array.isArray(accounts)) {
             accounts = [accounts];
         }
@@ -83,16 +102,16 @@ export class AccountUIManager {
 
                 label.setAttribute('account_ui_label_id', account.id);
 
-                this.setup(account, label);
+                this._init(account, label);
 
-                this.labels_update(account, label);
+                this._labels_update(account, label);
 
                 list.appendChild(label);
             }
         }
     }
 
-    labels_update(accounts, el = document.body, check_children = true) {
+    _labels_update(accounts, el = document.body, check_children = true) {
         if (!Array.isArray(accounts)) {
             accounts = [accounts];
         }
@@ -115,7 +134,7 @@ export class AccountUIManager {
         }
     }
 
-    labels_remove(accounts, el = document.body, check_children = true) {
+    _labels_remove(accounts, el = document.body, check_children = true) {
         if (!Array.isArray(accounts)) {
             accounts = [accounts];
         }
