@@ -1,24 +1,21 @@
 /* Modules. */
-import { AccountUIManager } from '../lib/js/account_ui_manager.js'
+import AccountUIManager from '../lib/js/AccountUIManager.js'
+import StorageAPI from '../lib/js/StorageAPI.js'
 
-window.account_ui_manager = new AccountUIManager();
-
-// chrome.storage.local.clear();
-
-/* Add the popup button event. */
-document.getElementById('btn_options').addEventListener('click', ev => {
-    chrome.runtime.openOptionsPage();
-});
-
-// /* Add account button. */
-// document.getElementById('btn_add_account').addEventListener('click', ev => {
-//     chrome.extension.getBackgroundPage().account_manager.add();
-// });
+window.accountUIManager = new AccountUIManager();
 
 /* List stored accounts button. */
 document.getElementById('btn_list_accounts').addEventListener('click', ev => {
-    chrome.extension.getBackgroundPage().account_manager.get_all()
+    chrome.extension.getBackgroundPage().accountManager.getAll()
     .then(accounts => {
         console.log(accounts);
+    });
+});
+
+/* Clear storage. */
+document.getElementById('btn_clear_storage').addEventListener('click', event => {
+    StorageAPI.clear()
+    .then(() => {
+        console.log('cleared');
     });
 });

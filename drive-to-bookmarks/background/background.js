@@ -1,4 +1,9 @@
 /* Modules. */
-import { AccountManager } from "../lib/js/account_manager.js"
+import AccountManager from '../lib/js/AccountManager.js'
 
-window.account_manager = new AccountManager();
+window.accountManager = new AccountManager();
+
+/*
+ * start drive sync
+ * start bookmark sync
+ */
