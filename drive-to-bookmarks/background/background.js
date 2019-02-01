@@ -1,9 +1,9 @@
 /* Modules. */
 import AccountManager from '../lib/js/AccountManager.js'
 
-window.accountManager = new AccountManager();
+// import SyncManager from '../lib/js/SyncManager.js'
 
-/*
- * start drive sync
- * start bookmark sync
- */
+AccountManager.reset();
+
+// var SyncManager = new SyncManager();
+// SyncManager.test();

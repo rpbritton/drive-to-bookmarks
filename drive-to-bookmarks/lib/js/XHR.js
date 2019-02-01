@@ -20,7 +20,7 @@ export default function XHR(method, url) {
             return;
         };
     
-        xhr.open(method, url, true);
+        xhr.open(method, encodeURI(url), true);
         xhr.send();
     });
 }

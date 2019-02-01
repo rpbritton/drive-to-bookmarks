@@ -1,54 +1,52 @@
-import { GetAccountManager } from './AccountManager.js'
+import AccountManager from './AccountManager.js'
 
 export default class AccountUIManager {
-    constructor() {
-        GetAccountManager().changeEmitter.addEventListener('add', event => {
-            add(event.detail);
+    init() {
+        AccountManager.changes.addEventListener('add', event => {
+            _addAccount(event.detail);
         });
-        GetAccountManager().changeEmitter.addEventListener('update', event => {
-            update(event.detail);
+        AccountManager.changes.addEventListener('update', event => {
+            _updateAccount(event.detail);
         });
-        GetAccountManager().changeEmitter.addEventListener('remove', event => {
-            remove(event.detail);
+        AccountManager.changes.addEventListener('remove', event => {
+            _removeAccount(event.detail);
         });
 
-        init();
+        _initEl();
     }
 }
 
-function init(account = {}, el = document.body, checkChildren = true) {
+function _initEl(account, el = document.body, checkChildren = true) {
     let targets = [];
     if (checkChildren) {
-        targets = Array.prototype.slice.call(
-                            el.querySelectorAll('[account_ui_event]'));
+        targets = el.querySelectorAll('[account_ui_event]');
+        targets = Array.prototype.slice.call(targets);
     }
     if (el.getAttribute('account_ui_event')) {
         targets.push(el);
     }
 
     for (let target of targets) {
-        target.addEventListener(target.getAttribute('account_ui_event'), event => {
+        target.addEventListener(target.getAttribute('account_ui_event'), ev => {
             switch (target.getAttribute('account_ui_action')) {
                 case 'add':
-                    GetAccountManager().add('Google');
+                    // AccountProviders['Google'].add();
+                    AccountManager.addNew('Google');
                     break;
 
                 case 'remove':
-                    if (account.id) {
-                        GetAccountManager().remove(account.id);
+                    if (account) {
+                        account.remove();
                     }
                     break;
             }
         });
     }
 
-    GetAccountManager().getAll()
-    .then(accounts => {
-        add(accounts, el, checkChildren);
-    });
+    _addAccount(AccountManager.get(), el, checkChildren);
 }
 
-function add(accounts, el = document.body, checkChildren = true) {
+function _addAccount(accounts, el = document.body, checkChildren = true) {
     if (!Array.isArray(accounts)) {
         accounts = [accounts];
     }
@@ -64,21 +62,22 @@ function add(accounts, el = document.body, checkChildren = true) {
 
     for (let list of lists) {
         let template = list.querySelector('[account_ui_label_template]');
+
         for (let account of accounts) {
             let label = template.content.cloneNode(true).firstElementChild;
 
-            label.setAttribute('account_ui_label_id', account.id);
+            label.setAttribute('account_ui_label_id', account.get('id'));
 
-            init(account, label);
+            _initEl(account, label);
 
-            update(account, label);
+            _updateAccount(account, label);
 
             list.appendChild(label);
         }
     }
 }
 
-function update(accounts, el = document.body, checkChildren = true) {
+function _updateAccount(accounts, el = document.body, checkChildren = true) {
     if (!Array.isArray(accounts)) {
         accounts = [accounts];
     }
@@ -86,22 +85,22 @@ function update(accounts, el = document.body, checkChildren = true) {
     for (let account of accounts) {
         let labels = [];
         if (checkChildren) {
-            labels = el.querySelectorAll(`[account_ui_label_id='${account.id}']`);
+            labels = el.querySelectorAll(`[account_ui_label_id='${account.get('id')}']`);
             labels = Array.prototype.slice.call(labels);
         }
-        if (el.getAttribute('account_ui_label_id') == account.id) {
+        if (el.getAttribute('account_ui_label_id') == account.get('id')) {
             labels.push(el);
         }
 
         for (let label of labels) {
             for (let target of label.querySelectorAll('[account_ui_text]')) {
-                target.innerHTML = account.info[target.getAttribute('account_ui_text')];
+                target.innerHTML = account.get('profile')[target.getAttribute('account_ui_text')];
             }
         }
     }
 }
 
-function remove(accounts, el = document.body, checkChildren = true) {
+function _removeAccount(accounts, el = document.body, checkChildren = true) {
     if (!Array.isArray(accounts)) {
         accounts = [accounts];
     }
@@ -109,10 +108,10 @@ function remove(accounts, el = document.body, checkChildren = true) {
     for (let account of accounts) {
         let labels = [];
         if (checkChildren) {
-            labels = el.querySelectorAll(`[account_ui_label_id='${account.id}']`);
+            labels = el.querySelectorAll(`[account_ui_label_id='${account.get('id')}']`);
             labels = Array.prototype.slice.call(labels);
         }
-        if (el.getAttribute('account_ui_label_id') == account.id) {
+        if (el.getAttribute('account_ui_label_id') == account.get('id')) {
             labels.push(el);
         }
 
