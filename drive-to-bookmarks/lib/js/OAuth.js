@@ -5,6 +5,10 @@ export default class OAuth {
         return new Promise((resolve, reject) => {
             let url = account.urls[source].base;
 
+            if (!Array.isArray(params)) {
+                params = [params];
+            }
+
             OAuth.getToken(account)
             .then(oauth => {
                 params.push(`${account.urls[source].token}=${oauth.token}`);

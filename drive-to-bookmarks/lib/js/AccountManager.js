@@ -1,7 +1,7 @@
 import StorageAPI from './StorageAPI.js'
 import AccountProviders from './AccountProviders.js'
 
-class AccountBackgroundManager {
+class AccountManagerBackground {
     constructor() {
         this._accounts = [];
     }
@@ -73,10 +73,10 @@ class AccountBackgroundManager {
         _saveAccounts();
     }
 
-    get(accountID) {
-        if (accountID) {
+    get(accountId) {
+        if (accountId) {
             return this._accounts.find(testAccount => {
-                return testAccount.get('id') == accountID;
+                return testAccount.get('id') == accountId;
             });
         }
         else {
@@ -119,7 +119,7 @@ export function GetAccountManager() {
     let background = chrome.extension.getBackgroundPage();
 
     if (!background.accountManager) {
-        background.accountManager = new AccountBackgroundManager();
+        background.accountManager = new AccountManagerBackground();
     }
 
     return background.accountManager;
