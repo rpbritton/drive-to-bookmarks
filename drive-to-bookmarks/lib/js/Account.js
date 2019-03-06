@@ -4,6 +4,7 @@ import BookmarkAPI from './BookmarkAPI.js'
 
 export default class Account {
     constructor(info = {}) {
+        // TODO: Add default settings
         this._info = info;
     }
 
@@ -26,8 +27,8 @@ export default class Account {
                 account.set({
                     profile: profile,
                     id: profile.id,
-                    files: {
-                        cloud: {},
+                    map: {
+                        file: {},
                         bookmark: {}
                     }
                 }, false);
@@ -39,10 +40,7 @@ export default class Account {
                 });
             })
             .then(bookmark => {
-                account.fileMapper({
-                    cloudId: 'root',
-                    bookmarkId: bookmark.id
-                }, false);
+                account.fileMapperSet('root', bookmark.id, false);
 
                 AccountManager.add(account);
 
@@ -109,7 +107,7 @@ export default class Account {
     getAllBookmarks() {
         return new Promise((resolve, reject) => {
             BookmarkAPI.get(this.fileMapper({
-                cloudId: 'root'
+                fileId: 'root'
             }))
             .then(tree => {
                 let bookmarks = {};
@@ -139,21 +137,38 @@ export default class Account {
         });
     }
 
-    getAllCloud() {
+    getAllFiles() {
         return new Promise((resolve, reject) => {
             OAuth.get(this, 'cloud', this.urls.cloud.files)
             .then(result => {
-                let cloud = {}
+                let files = {}
 
                 for (let file of result.files) {
-                    cloud[file.id] = {
+                    files[file.id] = {
                         name: file.name,
                         parents: file.parents,
                         webViewLink: file.webViewLink
                     };
                 }
 
-                resolve(cloud);
+                resolve(files);
+            });
+        });
+    }
+
+    fullSync() {
+        return new Promise((resolve, reject) => {
+            Promise.all([
+                this.getAllBookmarks(),
+                this.getAllFiles()
+            ])
+            .then(([bookmarks, files]) => {
+                console.log(bookmarks);
+                console.log(files);
+
+                // for (let bookmark in bookmarks) {
+                    
+                // }
             });
         });
     }
@@ -169,29 +184,61 @@ export default class Account {
     // getCloudTree();
     // getBookmarkTree();
 
-    fileMapper({cloudId, bookmarkId} = {}, notifyUpdate = true) {
-        let files = this.get('files');
+    fileMapperGet({fileId, bookmarkId} = {}) {
+        let map = this.get('map');
 
-        if (cloudId) {
+        if (fileId) {
+            return map.file[fileId];
+        }
+        if (bookmarkId) {
+            return map.bookmark[bookmarkId];
+        }
+    }
+
+    fileMapperSet({fileId, bookmarkId} = {}, notifyUpdate = true) {
+        let map = this.get('map');
+
+        if (fileId) {
             if (bookmarkId) {
-                files.cloud[cloudId] = bookmarkId;
-                files.bookmark[bookmarkId] = cloudId;
-
-                if (notifyUpdate) {
-                    AccountManager.refresh(this);
+                if (map.file[fileId] == bookmarkId && map.bookmark[bookmarkId] == fileId) {
+                    return;
                 }
+
+                if (map.file.hasOwnProperty(fileId)) {
+                    delete map.bookmark[map.file[fileId]];
+                }
+                if (map.bookmark.hasOwnProperty(bookmarkId)) {
+                    delete map.file[map.bookmark[bookmarkId]];
+                }
+
+                map.file[fileId] = bookmarkId;
+                map.bookmark[bookmarkId] = fileId;
             }
             else {
-                return files.cloud[cloudId];
+                if (!map.file.hasOwnProperty(fileId)) {
+                    return;
+                }
+
+                delete map.bookmark[map.file[fileId]];
+                delete map.file[fileId];
             }
         }
         else {
             if (bookmarkId) {
-                return files.bookmark[bookmarkId];
+                if (!map.bookmark.hasOwnProperty(bookmarkId)) {
+                    return;
+                }
+
+                delete map.file[map.bookmark[bookmarkId]];
+                delete map.bookmark[bookmarkId];
             }
             else {
                 return;
             }
+        }
+
+        if (notifyUpdate) {
+            AccountManager.refresh(this);
         }
     }
 };

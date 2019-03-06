@@ -10,14 +10,7 @@ class SyncManagerBackground {
         let accounts = AccountManager.get()
 
         for (let account of accounts) {
-            account.getAllBookmarks()
-            .then(tree => {
-                console.log(tree);
-            });
-            account.getAllCloud()
-            .then(tree => {
-                console.log(tree);
-            });
+            account.fullSync();
 
             // AccountOAuth.get(account.id, 'drive', '&pageSize=1000&q=root+in+parents')
             // AccountOAuth.get(account.id, 'drive', '&pageSize=1000&q=%271h-K8eUu02cR9TJpJMDIMW46IxwkqAtii%27+in+parents')
