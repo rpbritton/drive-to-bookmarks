@@ -40,7 +40,7 @@ export default class Account {
                 });
             })
             .then(bookmark => {
-                account.fileMapperSet('root', bookmark.id, false);
+                account.mapSet({fileId: 'root', bookmarkId: bookmark.id}, false);
 
                 AccountManager.add(account);
 
@@ -106,7 +106,7 @@ export default class Account {
 
     getAllBookmarks() {
         return new Promise((resolve, reject) => {
-            BookmarkAPI.get(this.fileMapper({
+            BookmarkAPI.get(this.mapGet({
                 fileId: 'root'
             }))
             .then(tree => {
@@ -184,7 +184,7 @@ export default class Account {
     // getCloudTree();
     // getBookmarkTree();
 
-    fileMapperGet({fileId, bookmarkId} = {}) {
+    mapGet({fileId, bookmarkId} = {}) {
         let map = this.get('map');
 
         if (fileId) {
@@ -195,7 +195,7 @@ export default class Account {
         }
     }
 
-    fileMapperSet({fileId, bookmarkId} = {}, notifyUpdate = true) {
+    mapSet({fileId, bookmarkId} = {}, notifyUpdate = true) {
         let map = this.get('map');
 
         if (fileId) {
