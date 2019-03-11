@@ -7,7 +7,7 @@ class SyncManagerBackground {
     }
 
     ta() {
-        let accounts = AccountManager.get()
+        let accounts = AccountManager.getAll()
 
         for (let account of accounts) {
             account.fullSync();

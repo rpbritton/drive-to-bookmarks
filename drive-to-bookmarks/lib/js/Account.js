@@ -50,23 +50,22 @@ export default class Account {
     }
 
     get(keys) {
-        if (keys) {
-            if (keys.constructor === Array) {
-                let result = {};
+        if (keys && keys.constructor === Array) {
+            let result = {};
 
-                for (let key in keys) {
-                    result[key] = this._info[key];
-                }
+            for (let key in keys) {
+                result[key] = this._info[key];
+            }
 
-                return result;
-            }
-            else {
-                return this._info[keys];
-            }
+            return result;
         }
         else {
-            return this._info;
+            return this._info[keys];
         }
+    }
+
+    getAll() {
+        return this._info;
     }
 
     set(newInfo, notifyUpdate = true) {
@@ -160,11 +159,27 @@ export default class Account {
         return new Promise((resolve, reject) => {
             Promise.all([
                 this.getAllBookmarks(),
-                this.getAllFiles()
+                this.getAllFiles(),
+                this.get('map')
             ])
-            .then(([bookmarks, files]) => {
+            .then(([bookmarks, files, map]) => {
                 console.log(bookmarks);
                 console.log(files);
+                console.log(map);
+
+                // for (let fileId in map.file) {
+                //     if (files.hasOwnProperty(fileId)) {
+
+                //     }
+                //     else {
+                //         this.mapSet({fileId: fileId}, false);
+                //     }
+                // }
+
+                // 1. Check map
+                //  a. Theoretically there should be no duplicates
+                // 2. Check left over bookmarks
+                // 3. Check left over files
 
                 // for (let bookmark in bookmarks) {
                     

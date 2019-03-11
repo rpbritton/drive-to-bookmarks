@@ -74,14 +74,13 @@ class AccountManagerBackground {
     }
 
     get(accountId) {
-        if (accountId) {
-            return this._accounts.find(testAccount => {
-                return testAccount.get('id') == accountId;
-            });
-        }
-        else {
-            return this._accounts;
-        }
+        return this._accounts.find(testAccount => {
+            return testAccount.get('id') == accountId;
+        });
+    }
+
+    getAll() {
+        return this._accounts;
     }
 
     get changes() {
@@ -104,10 +103,10 @@ class AccountManagerBackground {
 function _saveAccounts() {
     let accountsInfos = [];
 
-    let accounts = AccountManager.get();
+    let accounts = AccountManager.getAll();
 
     for (let account of accounts) {
-        accountsInfos.push(account.get());
+        accountsInfos.push(account.getAll());
     }
 
     return StorageAPI.set({

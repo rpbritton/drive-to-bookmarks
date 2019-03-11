@@ -43,7 +43,7 @@ function _initEl(account, el = document.body, checkChildren = true) {
         });
     }
 
-    _addAccount(AccountManager.get(), el, checkChildren);
+    _addAccount(AccountManager.getAll(), el, checkChildren);
 }
 
 function _addAccount(accounts, el = document.body, checkChildren = true) {
