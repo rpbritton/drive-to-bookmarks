@@ -163,27 +163,37 @@ export default class Account {
                 this.get('map')
             ])
             .then(([bookmarks, files, map]) => {
+                delete bookmarks[map.file['root']];
+
                 console.log(bookmarks);
                 console.log(files);
                 console.log(map);
 
-                // for (let fileId in map.file) {
-                //     if (files.hasOwnProperty(fileId)) {
+                for (let fileId in map.file) {
+                    if (files.hasOwnProperty(fileId)) {
+                        // Update bookmark
+                        delete files[fileId];
+                        delete bookmarks[map.file[fileId]];
+                    }
+                    else {
+                        if (fileId == 'root') {
+                            continue;
+                        }
 
-                //     }
-                //     else {
-                //         this.mapSet({fileId: fileId}, false);
-                //     }
-                // }
+                        BookmarkAPI.remove(map.file[fileId]);
+                        this.mapRemoveFile(fileId);
+                    }
+                }
 
-                // 1. Check map
-                //  a. Theoretically there should be no duplicates
-                // 2. Check left over bookmarks
-                // 3. Check left over files
+                for (let fileId in files) {
+                    // Add bookmark
+                    // Update bookmark
+                    // Update map
+                }
 
-                // for (let bookmark in bookmarks) {
-                    
-                // }
+                for (let bookmarkId in bookmarks) {
+                    BookmarkAPI.remove(bookmarkId);
+                }
             });
         });
     }
@@ -199,61 +209,58 @@ export default class Account {
     // getCloudTree();
     // getBookmarkTree();
 
-    mapGet({fileId, bookmarkId} = {}) {
-        let map = this.get('map');
+    mapGetBookmark(bookmarkId) {
+        return this.get('map').bookmark[bookmarkId];
+    }
 
-        if (fileId) {
-            return map.file[fileId];
-        }
-        if (bookmarkId) {
-            return map.bookmark[bookmarkId];
+    mapGetFile({fileId, bookmarkId} = {}) {
+        return this.get('map').file[fileId];
+    }
+
+    mapGetAllBookmarks() {
+        return Object.keys(this.get('map').bookmark);
+    }
+
+    mapGetAllFiles() {
+        return Object.keys(this.get('map').file);
+    }
+
+    mapSet(fileId, bookmarkId, notifyUpdate = false) {
+        if (fileId && bookmarkId) {
+            let map = this.get('map');
+
+            map.file[fileId] = bookmarkId;
+            map.bookmark[bookmarkId] = fileId;
+
+            if (notifyUpdate) {
+                AccountManager.refresh(this);
+            }
         }
     }
 
-    mapSet({fileId, bookmarkId} = {}, notifyUpdate = true) {
+    mapRemoveBookmark(bookmarkId, notifyUpdate = false) {
         let map = this.get('map');
 
-        if (fileId) {
-            if (bookmarkId) {
-                if (map.file[fileId] == bookmarkId && map.bookmark[bookmarkId] == fileId) {
-                    return;
-                }
+        if (bookmarkId && map.bookmark.hasOwnProperty(bookmarkId)) {
+            delete map.file[map.bookmark[bookmarkId]];
+            delete map.bookmark[bookmarkId];
 
-                if (map.file.hasOwnProperty(fileId)) {
-                    delete map.bookmark[map.file[fileId]];
-                }
-                if (map.bookmark.hasOwnProperty(bookmarkId)) {
-                    delete map.file[map.bookmark[bookmarkId]];
-                }
-
-                map.file[fileId] = bookmarkId;
-                map.bookmark[bookmarkId] = fileId;
-            }
-            else {
-                if (!map.file.hasOwnProperty(fileId)) {
-                    return;
-                }
-
-                delete map.bookmark[map.file[fileId]];
-                delete map.file[fileId];
+            if (notifyUpdate) {
+                AccountManager.refresh(this);
             }
         }
-        else {
-            if (bookmarkId) {
-                if (!map.bookmark.hasOwnProperty(bookmarkId)) {
-                    return;
-                }
+    }
 
-                delete map.file[map.bookmark[bookmarkId]];
-                delete map.bookmark[bookmarkId];
-            }
-            else {
-                return;
-            }
-        }
+    mapRemoveFile(fileId, notifyUpdate = false) {
+        let map = this.get('map');
 
-        if (notifyUpdate) {
-            AccountManager.refresh(this);
+        if (fileId && map.file.hasOwnProperty(fileId)) {
+            delete map.bookmark[map.file[fileId]];
+            delete map.file[fileId];
+
+            if (notifyUpdate) {
+                AccountManager.refresh(this);
+            }
         }
     }
 };

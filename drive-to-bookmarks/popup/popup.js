@@ -17,7 +17,7 @@ accountUIManager.init();
 
 /* List stored accounts button. */
 document.getElementById('btn_list_accounts').addEventListener('click', ev => {
-    console.log(AccountManager.get());
+    console.log(AccountManager.getAll());
 });
 
 /* Clear storage. */
