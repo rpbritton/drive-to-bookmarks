@@ -40,7 +40,7 @@ export default class Account {
                 });
             })
             .then(bookmark => {
-                account.mapSet({fileId: 'root', bookmarkId: bookmark.id}, false);
+                account.mapSet('root', bookmark.id);
 
                 AccountManager.add(account);
 
@@ -105,9 +105,7 @@ export default class Account {
 
     getAllBookmarks() {
         return new Promise((resolve, reject) => {
-            BookmarkAPI.get(this.mapGet({
-                fileId: 'root'
-            }))
+            BookmarkAPI.get(this.mapGetFile('root'))
             .then(tree => {
                 let bookmarks = {};
 
@@ -146,7 +144,8 @@ export default class Account {
                     files[file.id] = {
                         name: file.name,
                         parents: file.parents,
-                        webViewLink: file.webViewLink
+                        url: file.webViewLink,
+                        type: file.mimeType
                     };
                 }
 
@@ -171,7 +170,8 @@ export default class Account {
 
                 for (let fileId in map.file) {
                     if (files.hasOwnProperty(fileId)) {
-                        // Update bookmark
+                        updateBookmark(files[fileId]);
+
                         delete files[fileId];
                         delete bookmarks[map.file[fileId]];
                     }
@@ -186,9 +186,16 @@ export default class Account {
                 }
 
                 for (let fileId in files) {
-                    // Add bookmark
-                    // Update bookmark
-                    // Update map
+                    if (files[fileId].parents) {
+                        this.createBookmark(fileId, files[fileId])
+                        .then(bookmark => {
+                            this.mapSet(fileId, bookmark.id);
+                            console.log(this._info.map);
+                        })
+                        // Add bookmark
+                        // Update bookmark
+                        // Update map
+                    }
                 }
 
                 for (let bookmarkId in bookmarks) {
@@ -198,22 +205,26 @@ export default class Account {
         });
     }
 
-    // getFolderTree() {
-    //     return new Promise((resolve, reject) => {
-    //         OAuth.get(this, 'cloud', this.urls.cloud.folders)
-    //         .then(result => {
-    //             resolve(result);
-    //         });
-    //     });
-    // }
-    // getCloudTree();
-    // getBookmarkTree();
+    createBookmark(fileId, properties) {
+        return BookmarkAPI.create({
+            parentId: this.mapGetFile(properties.parents[0]),
+            url: (properties.url == "application/vnd.google-apps.folder") ? null : properties.url,
+            title: properties.name
+        });
+    }
+
+    updateBookmark(fileId, details) {
+        // return BookmarkAPI.move({
+
+        // })
+        // .then()
+    }
 
     mapGetBookmark(bookmarkId) {
         return this.get('map').bookmark[bookmarkId];
     }
 
-    mapGetFile({fileId, bookmarkId} = {}) {
+    mapGetFile(fileId) {
         return this.get('map').file[fileId];
     }
 
@@ -229,7 +240,11 @@ export default class Account {
         if (fileId && bookmarkId) {
             let map = this.get('map');
 
-            map.file[fileId] = bookmarkId;
+            if (!map.file[fileId]) {
+                map.file[fileId] = [];
+            }
+            map.file[fileId].push(bookmarkId);
+
             map.bookmark[bookmarkId] = fileId;
 
             if (notifyUpdate) {
@@ -242,6 +257,10 @@ export default class Account {
         let map = this.get('map');
 
         if (bookmarkId && map.bookmark.hasOwnProperty(bookmarkId)) {
+            if (map.file[map.bookmarks[bookmarkId]]) {
+                
+            }
+
             delete map.file[map.bookmark[bookmarkId]];
             delete map.bookmark[bookmarkId];
 

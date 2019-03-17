@@ -17,7 +17,7 @@ const GOOGLE_ACCOUNT_URLS = {
     'cloud': {
         'base': 'https://www.googleapis.com/drive/v3/files',
         'token': 'access_token',
-        'files': `q=trashed = false&fields=nextPageToken,files(name,id,parents,webViewLink)`,
+        'files': `q=trashed = false&fields=nextPageToken,files(name,id,parents,webViewLink,mimeType)`,
         'folders': `q=trashed = false and mimeType contains 'application/vnd.google-apps.folder'&fields=nextPageToken,files(name,id,parents,webViewLink)`
     }
 };
