@@ -1,10 +1,11 @@
 /* Modules. */
 import AccountManager from '../lib/js/AccountManager.js'
-import SyncManager from '../lib/js/SyncManager.js'
 
 AccountManager.reset()
 .then(() => {
-    SyncManager.ta();
+    for (let account of AccountManager.getAll()) {
+        account.sync.full();
+    }
 });
 
 

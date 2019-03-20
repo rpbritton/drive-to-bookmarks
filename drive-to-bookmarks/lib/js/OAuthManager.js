@@ -1,17 +1,22 @@
 import XHR from './XHR.js'
 
 export default class OAuth {
-    static get(account, source, params = []) {
-        return new Promise((resolve, reject) => {
-            let url = account.urls[source].base;
+    constructor(account) {
+        this.account = account;
+    }
 
+    get(source, params = []) {
+        return new Promise((resolve, reject) => {
+            let url = this.account.urls[source].base;
+
+            // TODO THIS STUCKS
             if (!Array.isArray(params)) {
                 params = [params];
             }
 
-            OAuth.getToken(account)
+            getToken()
             .then(oauth => {
-                params.push(`${account.urls[source].token}=${oauth.token}`);
+                params.push(`${this.account.urls[source].token}=${oauth.token}`);
 
                 return XHR('GET', `${url}?${params.join('&')}`);
             })
@@ -24,15 +29,13 @@ export default class OAuth {
         });
     }
 
-    static getToken(account, interactive = false) {
+    getToken(interactive = false) {
         return new Promise((resolve, reject) => {
-            if (account.get('oauth').tokenExpiration > Date.now()) {
-                resolve(account.get('oauth'));
+            if (this.account.get('oauth').tokenExpiration > Date.now()) {
+                resolve(this.account.get('oauth'));
             }
             else {
-                OAuth.getNewToken(account, {
-                    interactive: interactive
-                })
+                OAuth.getNewToken(account, {interactive: interactive})
                 .then(oauth => {
                     resolve(oauth);
                 })
@@ -44,14 +47,14 @@ export default class OAuth {
         });
     }
 
-    static getNewToken(account, {
+    getNewToken({
         interactive = false,
         updateAccount = true
     } = {}) {
         return new Promise((resolve, reject) => {
-            let url = account.urls.new;
-            if (account.get('id')) {
-                url += `&login_hint=${account.get('id')}`;
+            let url = this.account.urls.new;
+            if (this.account.get('id')) {
+                url += `&login_hint=${this.account.get('id')}`;
             }
             else {
                 url += `&prompt=select_account`;
@@ -79,7 +82,7 @@ export default class OAuth {
                 };
 
                 if (updateAccount) {
-                    account.set({
+                    this.account.set({
                         'oauth': oauth
                     });
                 }
