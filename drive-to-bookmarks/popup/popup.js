@@ -18,6 +18,24 @@ accountUIManager.init();
 /* List stored accounts button. */
 document.getElementById('btn_list_accounts').addEventListener('click', ev => {
     console.log(AccountManager.getAll());
+    // StorageAPI.set({
+    //     test: {
+    //         a: JSON.stringify([...new Map([
+    //                 ['test', 'nice'],
+    //                 [1, 5]
+    //             ])
+    //         ]),
+    //         b: 'nice'
+    //     }
+    // })
+    // .then(result => {
+    //     StorageAPI.get('test')
+    //     .then(result => {
+    //         console.log(result);
+    //         console.log(JSON.parse(result.a));
+    //         console.log(new Map(JSON.parse(result.a)));
+    //     })
+    // });
 });
 
 /* Clear storage. */

@@ -1,11 +1,18 @@
 import OAuth from './OAuth.js'
 import AccountManager from './AccountManager.js'
 import BookmarkAPI from './BookmarkAPI.js'
+import FileMapAPI from './FileMapAPI.js'
 
 export default class Account {
     constructor(info = {}) {
         // TODO: Add default settings
-        this._info = info;
+        this._info = {
+            profile: null,
+            id: null,
+            map: []
+        }
+        Object.assign(this._info, info);
+        this.map = new FileMapAPI(this._info.map);
     }
 
     static add() {
@@ -26,11 +33,7 @@ export default class Account {
             .then(profile => {
                 account.set({
                     profile: profile,
-                    id: profile.id,
-                    map: {
-                        file: {},
-                        bookmark: {}
-                    }
+                    id: profile.id
                 }, false);
 
                 return BookmarkAPI.create({
@@ -40,7 +43,7 @@ export default class Account {
                 });
             })
             .then(bookmark => {
-                account.mapSet('root', bookmark.id);
+                account.map.set('root', bookmark.id);
 
                 AccountManager.add(account);
 
@@ -105,19 +108,24 @@ export default class Account {
 
     getAllBookmarks() {
         return new Promise((resolve, reject) => {
-            BookmarkAPI.get(this.mapGetFile('root'))
-            .then(tree => {
-                let bookmarks = {};
+            let trees = [];
+            for (let bookmarkId of this.map.getFile('root')) {
+                trees.push(BookmarkAPI.get(bookmarkId));
+            }
+
+            Promise.all(trees)
+            .then(trees => {
+                let bookmarks = new Map();
 
                 let traverseBookmark = bookmark => {
-                    bookmarks[bookmark.id] = {
+                    bookmarks.set(bookmark.id, {
                         parentId: bookmark.parentId,
                         index: bookmark.index,
                         url: bookmark.url,
                         title: bookmark.title,
                         dateAdded: bookmark.dateAdded,
                         dateGroupModified: bookmark.dateGroupModified
-                    };
+                    });
 
                     if (bookmark.children) {
                         for (let child of bookmark.children) {
@@ -125,8 +133,10 @@ export default class Account {
                         }
                     }
                 }
-                for (let bookmark of tree) {
-                    traverseBookmark(bookmark);
+                for (let tree of trees) {
+                    for (let bookmark of tree) {
+                        traverseBookmark(bookmark);
+                    }
                 }
                 
                 resolve(bookmarks);
@@ -138,15 +148,15 @@ export default class Account {
         return new Promise((resolve, reject) => {
             OAuth.get(this, 'cloud', this.urls.cloud.files)
             .then(result => {
-                let files = {}
+                let files = new Map();
 
                 for (let file of result.files) {
-                    files[file.id] = {
+                    files.set(file.id, {
                         name: file.name,
                         parents: file.parents,
                         url: file.webViewLink,
                         type: file.mimeType
-                    };
+                    });
                 }
 
                 resolve(files);
@@ -158,128 +168,86 @@ export default class Account {
         return new Promise((resolve, reject) => {
             Promise.all([
                 this.getAllBookmarks(),
-                this.getAllFiles(),
-                this.get('map')
+                this.getAllFiles()
             ])
-            .then(([bookmarks, files, map]) => {
-                delete bookmarks[map.file['root']];
+            .then(([bookmarks, files]) => {
+                for (let bookmarkId of this.map.getFile('root')) {
+                    bookmarks.delete(bookmarkId);
+                }
 
                 console.log(bookmarks);
                 console.log(files);
-                console.log(map);
+                console.log(this.map.getAllFiles());
+                console.log(this.map.getAllBookmarks());
 
-                for (let fileId in map.file) {
-                    if (files.hasOwnProperty(fileId)) {
-                        updateBookmark(files[fileId]);
+                for (let fileId of this.map.getAllFiles()) {
+                    if (files.has(fileId)) {
+                        // updateBookmark(fileId, files.get(fileId));
 
-                        delete files[fileId];
-                        delete bookmarks[map.file[fileId]];
-                    }
-                    else {
-                        if (fileId == 'root') {
-                            continue;
+                        files.delete(fileId);
+                        for (let bookmarkId of this.map.getFile(fileId)) {
+                            bookmarks.delete(bookmarkId);
                         }
-
-                        BookmarkAPI.remove(map.file[fileId]);
-                        this.mapRemoveFile(fileId);
+                    }
+                    else if (fileId != 'root') {
+                        for (let bookmarkId of this.map.getFile(fileId)) {
+                            BookmarkAPI.remove(bookmarkId);
+                        }
+                        this.map.removeFile(fileId);
                     }
                 }
 
-                for (let fileId in files) {
-                    if (files[fileId].parents) {
-                        this.createBookmark(fileId, files[fileId])
-                        .then(bookmark => {
-                            this.mapSet(fileId, bookmark.id);
-                            console.log(this._info.map);
-                        })
-                        // Add bookmark
-                        // Update bookmark
-                        // Update map
+                let addBookmarks = []
+                for (let [fileId, file] of files) {
+                    if (file.parents) {
+                        for (let fileParentId of file.parents) {
+                            addBookmarks.push(BookmarkAPI.create({
+                                parentId: this.map.getFile(fileParentId),
+                                url: (file.url == 'application/vnd.google-apps.folder') ? null : file.url,
+                                title: file.name
+                            })
+                            .then(bookmark => {
+                                this.map.set(fileId, bookmark.id);
+
+                                console.log('added');
+
+                                return Promise.resolve();
+                            }));
+                        }
                     }
                 }
+                Promise.all(addBookmarks)
+                .then(result => {
+                    // Save
+                    // Reorganize
 
-                for (let bookmarkId in bookmarks) {
-                    BookmarkAPI.remove(bookmarkId);
+                    console.log(this.map);
+                    AccountManager.refresh(this);
+                });
+
+                for (let [bookmarkId, bookmark] of bookmarks) {
+                    // BookmarkAPI.remove(bookmarkId);
                 }
             });
         });
     }
 
-    createBookmark(fileId, properties) {
-        return BookmarkAPI.create({
-            parentId: this.mapGetFile(properties.parents[0]),
-            url: (properties.url == "application/vnd.google-apps.folder") ? null : properties.url,
-            title: properties.name
-        });
-    }
+    // createBookmark(fileId, file) {
+    //     return BookmarkAPI.create({
+    //         parentId: this.map.getFile(file.parents[0]),
+    //         url: (properties.mimeType == "application/vnd.google-apps.folder") ? null : properties.url,
+    //         title: properties.name
+    //     });
+    // }
 
-    updateBookmark(fileId, details) {
-        // return BookmarkAPI.move({
+    // updateBookmark(fileId, details) {
+    //     // return BookmarkAPI.move({
 
-        // })
-        // .then()
-    }
+    //     // })
+    //     // .then()
+    // }
 
-    mapGetBookmark(bookmarkId) {
-        return this.get('map').bookmark[bookmarkId];
-    }
-
-    mapGetFile(fileId) {
-        return this.get('map').file[fileId];
-    }
-
-    mapGetAllBookmarks() {
-        return Object.keys(this.get('map').bookmark);
-    }
-
-    mapGetAllFiles() {
-        return Object.keys(this.get('map').file);
-    }
-
-    mapSet(fileId, bookmarkId, notifyUpdate = false) {
-        if (fileId && bookmarkId) {
-            let map = this.get('map');
-
-            if (!map.file[fileId]) {
-                map.file[fileId] = [];
-            }
-            map.file[fileId].push(bookmarkId);
-
-            map.bookmark[bookmarkId] = fileId;
-
-            if (notifyUpdate) {
-                AccountManager.refresh(this);
-            }
-        }
-    }
-
-    mapRemoveBookmark(bookmarkId, notifyUpdate = false) {
-        let map = this.get('map');
-
-        if (bookmarkId && map.bookmark.hasOwnProperty(bookmarkId)) {
-            if (map.file[map.bookmarks[bookmarkId]]) {
-                
-            }
-
-            delete map.file[map.bookmark[bookmarkId]];
-            delete map.bookmark[bookmarkId];
-
-            if (notifyUpdate) {
-                AccountManager.refresh(this);
-            }
-        }
-    }
-
-    mapRemoveFile(fileId, notifyUpdate = false) {
-        let map = this.get('map');
-
-        if (fileId && map.file.hasOwnProperty(fileId)) {
-            delete map.bookmark[map.file[fileId]];
-            delete map.file[fileId];
-
-            if (notifyUpdate) {
-                AccountManager.refresh(this);
-            }
-        }
+    save() {
+        this._info.map = this.map.save();
     }
 };
