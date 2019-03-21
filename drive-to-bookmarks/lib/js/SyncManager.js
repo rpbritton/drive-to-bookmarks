@@ -1,6 +1,5 @@
-import FileManager from './FileManager.js'
-import BookmarkManager from './BookmarkManager.js'
-import SyncMapManager from './SyncMapManager.js';
+
+import SyncMapManager from './SyncMapManager.js'
 
 export default class SyncManager {
     constructor(account) {
@@ -9,16 +8,13 @@ export default class SyncManager {
             this.account.set({'map': []});
         }
         this.map = new SyncMapManager(this.account.get('map'));
-
-        this.files = new FileManager(this.account);
-        this.bookmarks = new BookmarkManager(this.account);
     }
     
     full() {
         return new Promise((resolve, reject) => {
             Promise.all([
-                this.bookmarks.getAll(),
-                this.files.getAll()
+                this.account.bookmarks.getAll(),
+                this.account.files.getAll()
             ])
             .then(([bookmarks, files]) => {
                 // for (let bookmarkId of this.map.getFile('root')) {
@@ -83,6 +79,6 @@ export default class SyncManager {
     }
 
     save() {
-        this.account.set({map: this.map.save()});
+        this.account.set('map', this.map.save());
     }
 }

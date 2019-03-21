@@ -1,6 +1,6 @@
 import XHR from './XHR.js'
 
-export default class OAuth {
+export default class OAuthManager {
     constructor(account) {
         this.account = account;
     }
@@ -14,7 +14,7 @@ export default class OAuth {
                 params = [params];
             }
 
-            getToken()
+            this.getToken()
             .then(oauth => {
                 params.push(`${this.account.urls[source].token}=${oauth.token}`);
 

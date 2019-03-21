@@ -1,3 +1,5 @@
+import BookmarkAPI from './BookmarkAPI.js'
+
 export default class BookmarkManager {
     constructor(account) {
         this.account = account;
@@ -37,6 +39,22 @@ export default class BookmarkManager {
                 }
                 
                 resolve(bookmarks);
+            });
+        });
+    }
+
+    create(fileId, {
+        name,
+        url,
+        index,
+        parentId = this.account.sync.map.getFile('root')
+    } = {}) {
+        return new Promise((resolve, reject) => {
+            BookmarkAPI.create({title: name, url, index, parentId})
+            .then(bookmark => {
+                this.account.sync.map.set(fileId, bookmark.id);
+
+                resolve();
             });
         });
     }

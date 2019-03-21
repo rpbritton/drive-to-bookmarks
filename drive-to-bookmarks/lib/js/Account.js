@@ -1,8 +1,8 @@
 import OAuthManager from './OAuthManager.js'
 import AccountManager from './AccountManager.js'
 import SyncManager from './SyncManager.js'
-// import BookmarkAPI from './BookmarkAPI.js'
-// import BookmarkManager from './BookmarkManager.js'
+import FileManager from './FileManager.js'
+import BookmarkManager from './BookmarkManager.js'
 
 export default class Account {
     constructor(info = {}) {
@@ -15,6 +15,8 @@ export default class Account {
 
         this.oauth = new OAuthManager(this);
         this.sync = new SyncManager(this);
+        this.files = new FileManager(this);
+        this.bookmarks = new BookmarkManager(this);
     }
 
     static add() {
@@ -26,24 +28,18 @@ export default class Account {
                 updateAccount: false
             })
             .then(oauth => {
-                account.set({
-                    oauth: oauth
-                }, false);
+                account.set('oauth', oauth);
 
                 return account.getNewProfile(false);
             })
             .then(profile => {
-                account.set({
-                    profile: profile,
-                    id: profile.id
-                }, false);
+                account.set('profile', profile);
+                account.set('id', profile.id);
 
-                // this.bookmarkManager...
-                // return BookmarkAPI.create({
-                //     // 'parentId: ' TODO: Add default place
-                //     // TODO: Add default name
-                //     'title': `DriveToBookmarks - ${account.get('profile').email}`
-                // });
+                return account.bookmarks.create('root', {
+                    // TODO: ADD DEFAULT PARENT
+                    'name': `DriveToBookmarks - ${account.get('profile').email}`
+                });
             })
             .then(bookmark => {
                 // account.map.set('root', bookmark.id);
@@ -74,8 +70,8 @@ export default class Account {
         return this._info;
     }
 
-    set(newInfo, notifyUpdate = false) {
-        Object.assign(this._info, newInfo);
+    set(key, value, notifyUpdate = false) {
+        this._info[key] = value;
 
         if (notifyUpdate) {
             AccountManager.refresh(this);
@@ -87,9 +83,7 @@ export default class Account {
             this.oauth.get('profile')
             .then(profile => {
                 if (updateAccount) {
-                    this.set({
-                        profile: profile
-                    });
+                    this.set('profile', profile, true)
                 }
 
                 resolve(profile);
@@ -108,23 +102,6 @@ export default class Account {
             AccountManager.remove(this);
         });
     }
-
-    
-
-    // createBookmark(fileId, file) {
-    //     return BookmarkAPI.create({
-    //         parentId: this.map.getFile(file.parents[0]),
-    //         url: (properties.mimeType == "application/vnd.google-apps.folder") ? null : properties.url,
-    //         title: properties.name
-    //     });
-    // }
-
-    // updateBookmark(fileId, details) {
-    //     // return BookmarkAPI.move({
-
-    //     // })
-    //     // .then()
-    // }
 
     save() {
         this.sync.save();

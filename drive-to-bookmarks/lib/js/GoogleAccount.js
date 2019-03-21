@@ -28,8 +28,6 @@ export default class GoogleAccount extends Account {
 
         this.urls = GOOGLE_ACCOUNT_URLS;
 
-        this.set({
-            'provider': 'google'
-        }, false);
+        this.set('provider', 'google');
     }
 }
