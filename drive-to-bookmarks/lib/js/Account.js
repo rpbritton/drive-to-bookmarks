@@ -38,7 +38,7 @@ export default class Account {
 
                 return account.bookmarks.create('root', {
                     // TODO: ADD DEFAULT PARENT
-                    'name': `DriveToBookmarks - ${account.get('profile').email}`
+                    name: `DriveToBookmarks - ${account.get('profile').email}`
                 });
             })
             .then(bookmark => {

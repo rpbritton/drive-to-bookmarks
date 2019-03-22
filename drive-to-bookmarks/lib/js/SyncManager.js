@@ -23,26 +23,26 @@ export default class SyncManager {
 
                 console.log(bookmarks);
                 console.log(files);
-                console.log(this.map.getAllFiles());
-                console.log(this.map.getAllBookmarks());
+                // console.log(this.map.getAllFiles());
+                // console.log(this.map.getAllBookmarks());
 
-                for (let fileId of this.map.getAllFiles()) {
-                    if (files.has(fileId)) {
-                        // updateBookmark(fileId, files.get(fileId));
+                // for (let fileId of this.map.getAllFiles()) {
+                //     if (files.has(fileId)) {
+                //         // updateBookmark(fileId, files.get(fileId));
 
-                        files.delete(fileId);
-                        for (let bookmarkId of this.map.getFile(fileId)) {
-                            bookmarks.delete(bookmarkId);
-                        }
-                    }
-                    else if (fileId != 'root') {
-                        for (let bookmarkId of this.map.getFile(fileId)) {
-                            // BookmarkAPI.remove(bookmarkId);
-                            // removeBookmark
-                        }
-                        this.map.removeFile(fileId);
-                    }
-                }
+                //         files.delete(fileId);
+                //         for (let bookmarkId of this.map.getFile(fileId)) {
+                //             bookmarks.delete(bookmarkId);
+                //         }
+                //     }
+                //     else if (fileId != 'root') {
+                //         for (let bookmarkId of this.map.getFile(fileId)) {
+                //             // BookmarkAPI.remove(bookmarkId);
+                //             // removeBookmark
+                //         }
+                //         this.map.removeFile(fileId);
+                //     }
+                // }
 
                 // let addBookmarks = []
                 // for (let [fileId, file] of files) {

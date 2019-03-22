@@ -1,5 +1,9 @@
 export default class BookmarkAPI {
-    static create(details = {}) {
+    static create(details) {
+        if (!details) {
+            return;
+        }
+
         return new Promise((resolve, reject) => {
             chrome.bookmarks.create(details, bookmark => {
                 resolve(bookmark);
