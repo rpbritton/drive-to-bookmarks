@@ -1,3 +1,5 @@
+import {SimpleBookmark} from './BookmarkManager.js'
+
 export default class FileManager {
     constructor(account) {
         this.account = account;
@@ -21,5 +23,17 @@ export default class FileManager {
                 resolve(files);
             });
         });
+    }
+}
+
+export class SimpleFile {
+    constructor(properties) {
+        this.name;
+        this.id;
+        this.url;
+        this.isFolder;
+        this.parentId;
+
+        Object.assign(this, properties);
     }
 }

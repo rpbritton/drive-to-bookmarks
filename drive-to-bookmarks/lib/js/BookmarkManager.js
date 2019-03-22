@@ -1,4 +1,5 @@
 import BookmarkAPI from './BookmarkAPI.js'
+import {SimpleFile} from './FileManager.js'
 
 export default class BookmarkManager {
     constructor(account) {
@@ -43,19 +44,30 @@ export default class BookmarkManager {
         });
     }
 
-    create(fileId, {
-        name,
-        url,
-        index,
-        parentId = this.account.sync.map.getFile('root')
-    } = {}) {
-        return new Promise((resolve, reject) => {
-            BookmarkAPI.create({title: name, url, index, parentId})
-            .then(bookmark => {
-                this.account.sync.map.set(fileId, bookmark.id);
+    // create(file = new SimpleBookmark()) {
+    //     return new Promise((resolve, reject) => {
+    //         // BookmarkAPI.create({title: name, url, index, parentId})
+    //         // .then(bookmark => {
+    //         //     this.account.sync.map.set(fileId, bookmark.id);
 
-                resolve();
-            });
-        });
+    //         //     resolve();
+    //         // });
+    //     });
+    // }
+
+    update()
+}
+
+export class SimpleBookmark {
+    constructor({
+        name, id, url, isFolder, index, dateAdded, dateGroupModified
+    } = {}) {
+        this.name = name;
+        this.id = id;
+        this.url = url;
+        this.isFolder = isFolder;
+        this.index = index;
+        this.dateAdded = dateAdded;
+        this.dateGroupModified = dateGroupModified;
     }
 }
