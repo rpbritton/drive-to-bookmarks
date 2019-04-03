@@ -5,9 +5,9 @@ export default class OAuthManager {
         this.account = account;
     }
 
-    get(source, params = []) {
+    get(source, {append = '', params = []} = {}) {
         return new Promise((resolve, reject) => {
-            let url = this.account.urls[source].base;
+            let url = this.account.urls[source].base +append;
 
             // TODO THIS STUCKS
             if (!Array.isArray(params)) {

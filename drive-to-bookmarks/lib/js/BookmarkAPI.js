@@ -19,6 +19,35 @@ export default class BookmarkAPI {
         });
     }
 
+    static update(bookmarkId, changes) {
+        return Promise.all([
+            new Promise((resolve, reject) => {
+                chrome.bookmarks.update(bookmarkId, {
+                    title: changes.title,
+                    url: changes.url
+                }, bookmark => {
+                    resolve();
+                });
+            }),
+            new Promise((resolve, reject) => {
+                chrome.bookmarks.move(bookmarkId, {
+                    parentId: changes.parentId,
+                    index: changes.index
+                }, bookmark => {
+                    resolve();
+                })
+            })
+        ]);
+    }
+
+    static remove(bookmarkId) {
+        return new Promise((resolve, reject) => {
+            chrome.bookmarks.remove(bookmarkId, () => {
+                resolve();
+            });
+        })
+    }
+
     // static getAll() {
     //     return new Promise((resolve, reject) => {
 

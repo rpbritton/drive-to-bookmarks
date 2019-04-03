@@ -21,11 +21,19 @@ export default class SyncMapManager {
     }
 
     getAllFiles() {
-        return [...this.files.keys()];
+        return new Set([...this.files.keys()]);
     }
 
     getAllBookmarks() {
-        return [...this.bookmarks.keys()];
+        return new Set([...this.bookmarks.keys()]);
+    }
+
+    hasFile(file) {
+        return this.files.has(file);
+    }
+
+    hasBookmark(bookmark) {
+        return this.bookmark.has(bookmark);
     }
 
     set(file, bookmark) {

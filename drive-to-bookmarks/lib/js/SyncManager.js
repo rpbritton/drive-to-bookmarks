@@ -17,7 +17,7 @@ export default class SyncManager {
                 this.account.files.getAll()
             ])
             .then(([bookmarks, files]) => {
-                for (let bookmarkId of this.map.getFile('root')) {
+                for (let bookmarkId of this.map.getFile(this.account.get('rootFolderId'))) {
                     bookmarks.delete(bookmarkId);
                 }
 
@@ -26,55 +26,86 @@ export default class SyncManager {
                 // console.log(this.map.getAllFiles());
                 // console.log(this.map.getAllBookmarks());
 
-                // for (let fileId of this.map.getAllFiles()) {
-                //     if (files.has(fileId)) {
-                //         // updateBookmark(fileId, files.get(fileId));
+                for (let fileId of this.map.getAllFiles()) {
+                    if (files.has(fileId)) {
+                        this.account.bookmarks.update(this.map.getFile(fileId), files.get(fileId));
 
-                //         files.delete(fileId);
-                //         for (let bookmarkId of this.map.getFile(fileId)) {
-                //             bookmarks.delete(bookmarkId);
-                //         }
-                //     }
-                //     else if (fileId != 'root') {
-                //         for (let bookmarkId of this.map.getFile(fileId)) {
-                //             // BookmarkAPI.remove(bookmarkId);
-                //             // removeBookmark
-                //         }
-                //         this.map.removeFile(fileId);
-                //     }
-                // }
+                        files.delete(fileId);
+                        for (let bookmarkId of this.map.getFile(fileId)) {
+                            bookmarks.delete(bookmarkId);
+                        }
+                    }
+                    else if (fileId != this.account.get('rootFolderId')) {
+                        for (let bookmarkId of this.map.getFile(fileId)) {
+                            this.account.bookmarks.remove(bookmarkId);
+                        }
+                        this.map.removeFile(fileId);
+                    }
+                }
 
-                // let addBookmarks = []
-                // for (let [fileId, file] of files) {
-                //     if (file.parents) {
-                //         for (let fileParentId of file.parents) {
-                //             addBookmarks.push(BookmarkAPI.create({
-                //                 parentId: this.map.getFile(fileParentId),
-                //                 url: (file.url == 'application/vnd.google-apps.folder') ? null : file.url,
-                //                 title: file.name
-                //             })
-                //             .then(bookmark => {
-                //                 this.map.set(fileId, bookmark.id);
+                let createBookmark = (parentId, file) => {
+                    return new Promise((resolve, reject) => {
+                        console.log(parentId);
+                        this.account.bookmarks.create({
+                            title: file.name,
+                            url: (file.url == 'application/vnd.google-apps.folder') ? null : file.url,
+                            parentId: this.map.getFile(parentId)
+                        })
+                        .then(bookmark => {
+                            this.map.set(fileId, bookmark.id);
 
-                //                 console.log('added');
+                            resolve();
+                        });
+                    });
+                }
 
-                //                 return Promise.resolve();
-                //             }));
-                //         }
-                //     }
-                // }
-                // Promise.all(addBookmarks)
-                // .then(result => {
-                //     // Save
-                //     // Reorganize
+                let createBookmarks = file => {
+                    // if (files.size() == 0) {
+                    //     return;
+                    // }
 
-                //     console.log(this.map);
-                //     AccountManager.refresh(this);
-                // });
+                    if (!file) {
+                        file = files.values().next().value;
+                    }
+                    files.delete(file.id);
 
-                // for (let [bookmarkId, bookmark] of bookmarks) {
-                //     // BookmarkAPI.remove(bookmarkId);
-                // }
+                    if (!file.parents) {
+                        return;
+                    }
+
+                    let bookmarksToMake = [];
+                    for (let parentId of file.parents) {
+                        bookmarksToMake.push(new Promise((resolve, reject) => {
+                            if (this.map.hasFile(parentId)) {
+                                createBookmark(parentId, file)
+                                .then(() => {
+                                    resolve();
+                                });
+                            }
+                            else if (files.has(parentId)) {
+                                createBookmark(files.get(parentId))
+                                .then(() => {
+                                    createBookmark(file)
+                                    .then(() => {
+                                        resolve()
+                                    });
+                                })
+                            }
+                            else {
+                                resolve();
+                            }
+                        }));
+                    }
+                    Promise.all(bookmarksToMake)
+                    .then(() => {
+                        createBookmarks();
+                    });
+                }
+                createBookmarks();
+
+                for (let [bookmarkId, bookmark] of bookmarks) {
+                    this.account.bookmarks.remove(bookmarkId);
+                }
             });
         });
     }

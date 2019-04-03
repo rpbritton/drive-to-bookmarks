@@ -5,12 +5,12 @@ export default class FileManager {
 
     getAll() {
         return new Promise((resolve, reject) => {
-            this.account.oauth.get('cloud', this.account.urls.cloud.files)
+            this.account.oauth.get('cloud', {params: this.account.urls.cloud.files})
             .then(result => {
                 let files = new Map();
 
                 for (let file of result.files) {
-                    files.set(file.id, SimplifyFile(file));
+                    files.set(file.id, file);
                 }
 
                 resolve(files);
@@ -19,12 +19,12 @@ export default class FileManager {
     }
 }
 
-function SimplifyFile({id, mimeType, name, parents, url}) {
-    return {
-        id,
-        isFolder: (mimeType == 'application/vnd.google-apps.folder'),
-        url,
-        name,
-        parentIds: parents
-    };
-}
+// function SimplifyFile({id, mimeType, name, parents, url}) {
+//     return {
+//         id,
+//         isFolder: (mimeType == 'application/vnd.google-apps.folder'),
+//         url,
+//         name,
+//         parentIds: parents
+//     };
+// }

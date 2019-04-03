@@ -30,19 +30,23 @@ export default class Account {
             .then(oauth => {
                 account.set('oauth', oauth);
 
-                return account.getNewProfile(false);
+                return Promise.all([
+                    account.getNewProfile(false),
+                    account.oauth.get('cloud', {append: '/root'})
+                ]);
             })
-            .then(profile => {
+            .then(([profile, rootFolder]) => {
                 account.set('profile', profile);
                 account.set('id', profile.id);
+                account.set('rootFolderId', rootFolder.id);
 
-                return account.bookmarks.create('root', {
+                return account.bookmarks.create({
                     // TODO: ADD DEFAULT PARENT
-                    name: `DriveToBookmarks - ${account.get('profile').email}`
-                });
+                    title: `DriveToBookmarks - ${account.get('profile').email}`
+                })
             })
             .then(bookmark => {
-                // account.map.set('root', bookmark.id);
+                account.sync.map.set(account.get('rootFolderId'), bookmark.id);
 
                 AccountManager.add(account);
 

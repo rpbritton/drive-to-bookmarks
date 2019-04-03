@@ -8,7 +8,7 @@ export default class BookmarkManager {
     getAll() {
         return new Promise((resolve, reject) => {
             let treeRequests = [];
-            for (let bookmarkId of this.account.sync.map.getFile('root')) {
+            for (let bookmarkId of this.account.sync.map.getFile(this.account.get('rootFolderId'))) {
                 treeRequests.push(BookmarkAPI.get(bookmarkId));
             }
 
@@ -17,7 +17,7 @@ export default class BookmarkManager {
                 let bookmarks = new Map();
 
                 let traverseBookmark = bookmark => {
-                    bookmarks.set(bookmark.id, SimplifyBookmark(bookmark));
+                    bookmarks.set(bookmark.id, bookmark);
 
                     if (bookmark.children) {
                         for (let child of bookmark.children) {
@@ -36,35 +36,39 @@ export default class BookmarkManager {
         });
     }
 
-    create(fileId, details = {}) {
+    create({title, url, parentId, index} = {}) {
         return new Promise((resolve, reject) => {
-            BookmarkAPI.create(ReadyBookmark(details))
+            BookmarkAPI.create({title, url, parentId, index})
             .then(bookmark => {
-                this.account.sync.map.set(fileId, bookmark.id);
-
-                resolve();
+                resolve(bookmark);
             });
         });
     }
 
-    // update()
+    update(bookmarkId, {title, url, parentId, index} = {}) {
+        return BookmarkAPI.update(bookmarkId, {title, url, parentId, index});
+    }
+
+    remove(bookmarkId) {
+        return BookmarkAPI.remove(bookmarkId);
+    }
 }
 
-function SimplifyBookmark({title, dateAdded, parentId, index, id, dateGroupModified} = {}) {
-    return {
-        name: title,
-        dateAdded,
-        parentId,
-        index,
-        id,
-        dateGroupModified
-    };
-}
-function ReadyBookmark({name, url, index, parentId} = {}) {
-    return {
-        title: name,
-        url,
-        index,
-        parentId
-    };
-}
+// function SimplifyBookmark({title, dateAdded, parentId, index, id, dateGroupModified} = {}) {
+//     return {
+//         name: title,
+//         dateAdded,
+//         parentId,
+//         index,
+//         id,
+//         dateGroupModified
+//     };
+// }
+// function ReadyBookmark({name, url, index, parentId} = {}) {
+//     return {
+//         title: name,
+//         url,
+//         index,
+//         parentId
+//     };
+// }
