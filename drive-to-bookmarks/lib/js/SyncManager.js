@@ -1,5 +1,6 @@
 
 import SyncMapManager from './SyncMapManager.js'
+import AccountManager from './AccountManager.js'
 
 export default class SyncManager {
     constructor(account) {
@@ -17,25 +18,36 @@ export default class SyncManager {
                 this.account.files.getAll()
             ])
             .then(([bookmarks, files]) => {
-                for (let bookmarkId of this.map.getFile(this.account.get('rootFolderId'))) {
+                // Don't process the root folder
+                let rootFolderId = this.account.get('rootFolderId');
+                for (let bookmarkId of this.map.getFile(rootFolderId)) {
                     bookmarks.delete(bookmarkId);
                 }
 
-                console.log(bookmarks);
-                console.log(files);
+                // console.log(bookmarks);
+                // console.log(files);
                 // console.log(this.map.getAllFiles());
                 // console.log(this.map.getAllBookmarks());
 
+                // Check for similarities
                 for (let fileId of this.map.getAllFiles()) {
                     if (files.has(fileId)) {
-                        this.account.bookmarks.update(this.map.getFile(fileId), files.get(fileId));
+                    // Update the file if it already exists
+                        let file = files.get(fileId);
+                        file.bookmarkId = this.map.getFile(fileId);
+
+                        for (let bookmarkId of this.map.getFile(fileId)) {
+                            file.bookmarkId = bookmarkId;
+                            this.account.bookmarks.update(file);
+                        }
 
                         files.delete(fileId);
                         for (let bookmarkId of this.map.getFile(fileId)) {
                             bookmarks.delete(bookmarkId);
                         }
                     }
-                    else if (fileId != this.account.get('rootFolderId')) {
+                    else if (fileId != rootFolderId) {
+                    // Remove the file if it doesn't exist in the drive
                         for (let bookmarkId of this.map.getFile(fileId)) {
                             this.account.bookmarks.remove(bookmarkId);
                         }
@@ -43,65 +55,61 @@ export default class SyncManager {
                     }
                 }
 
-                let createBookmark = (parentId, file) => {
+                // Function to allow a recursive bookmark tree building
+                let createBookmarks = possibleParents => {
                     return new Promise((resolve, reject) => {
-                        console.log(parentId);
-                        this.account.bookmarks.create({
-                            title: file.name,
-                            url: (file.url == 'application/vnd.google-apps.folder') ? null : file.url,
-                            parentId: this.map.getFile(parentId)
-                        })
-                        .then(bookmark => {
-                            this.map.set(fileId, bookmark.id);
+                        let promises = [];
+                        let possibleNewParents = new Set();
 
-                            resolve();
-                        });
-                    });
-                }
+                        // Move through files to be added, checking each parent
+                        for (let [fileId, file] of files) {
+                            if (file.fileParentIds.size == 0) {
+                                files.delete(fileId);
+                                continue;
+                            }
 
-                let createBookmarks = file => {
-                    // if (files.size() == 0) {
-                    //     return;
-                    // }
+                            for (let fileParentId of file.fileParentIds) {
+                                if (possibleParents.has(fileParentId)) {
+                                    for (let bookmarkParentId of this.map.getFile(fileParentId)) {
+                                        file.bookmarkParentId = bookmarkParentId;
 
-                    if (!file) {
-                        file = files.values().next().value;
-                    }
-                    files.delete(file.id);
+                                        promises.push(
+                                            this.account.bookmarks.create(file)
+                                            .then(bookmark => {
+                                                this.map.set(fileId, bookmark.bookmarkId);
 
-                    if (!file.parents) {
-                        return;
-                    }
+                                                file.fileParentIds.delete(fileParentId);
 
-                    let bookmarksToMake = [];
-                    for (let parentId of file.parents) {
-                        bookmarksToMake.push(new Promise((resolve, reject) => {
-                            if (this.map.hasFile(parentId)) {
-                                createBookmark(parentId, file)
+                                                if (bookmark.isFolder) {
+                                                    possibleNewParents.add(fileId);
+                                                }
+                                                
+                                                return Promise.resolve();
+                                            })
+                                        );
+                                    }
+                                }
+                            }
+                        }
+
+                        Promise.all(promises)
+                        .then(() => {
+                            if (possibleNewParents.size != 0) {
+                                createBookmarks(possibleNewParents)
                                 .then(() => {
                                     resolve();
                                 });
                             }
-                            else if (files.has(parentId)) {
-                                createBookmark(files.get(parentId))
-                                .then(() => {
-                                    createBookmark(file)
-                                    .then(() => {
-                                        resolve()
-                                    });
-                                })
-                            }
                             else {
                                 resolve();
                             }
-                        }));
-                    }
-                    Promise.all(bookmarksToMake)
-                    .then(() => {
-                        createBookmarks();
+                        });
                     });
                 }
-                createBookmarks();
+                createBookmarks(this.map.getAllFiles())
+                .then(() => {
+                    AccountManager.refresh(this.account);
+                });
 
                 for (let [bookmarkId, bookmark] of bookmarks) {
                     this.account.bookmarks.remove(bookmarkId);

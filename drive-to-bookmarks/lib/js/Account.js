@@ -42,11 +42,11 @@ export default class Account {
 
                 return account.bookmarks.create({
                     // TODO: ADD DEFAULT PARENT
-                    title: `DriveToBookmarks - ${account.get('profile').email}`
+                    name: `DriveToBookmarks - ${account.get('profile').email}`
                 })
             })
             .then(bookmark => {
-                account.sync.map.set(account.get('rootFolderId'), bookmark.id);
+                account.sync.map.set(account.get('rootFolderId'), bookmark.bookmarkId);
 
                 AccountManager.add(account);
 

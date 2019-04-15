@@ -17,7 +17,7 @@ export default class BookmarkManager {
                 let bookmarks = new Map();
 
                 let traverseBookmark = bookmark => {
-                    bookmarks.set(bookmark.id, bookmark);
+                    bookmarks.set(bookmark.id, DecodeBookmark(bookmark));
 
                     if (bookmark.children) {
                         for (let child of bookmark.children) {
@@ -36,17 +36,17 @@ export default class BookmarkManager {
         });
     }
 
-    create({title, url, parentId, index} = {}) {
+    create(bookmark) {
         return new Promise((resolve, reject) => {
-            BookmarkAPI.create({title, url, parentId, index})
+            BookmarkAPI.create(EncodeBookmark(bookmark))
             .then(bookmark => {
-                resolve(bookmark);
+                resolve(DecodeBookmark(bookmark));
             });
         });
     }
 
-    update(bookmarkId, {title, url, parentId, index} = {}) {
-        return BookmarkAPI.update(bookmarkId, {title, url, parentId, index});
+    update(bookmark) {
+        return BookmarkAPI.update(bookmark.bookmarkId, EncodeBookmark(bookmark));
     }
 
     remove(bookmarkId) {
@@ -54,21 +54,21 @@ export default class BookmarkManager {
     }
 }
 
-// function SimplifyBookmark({title, dateAdded, parentId, index, id, dateGroupModified} = {}) {
-//     return {
-//         name: title,
-//         dateAdded,
-//         parentId,
-//         index,
-//         id,
-//         dateGroupModified
-//     };
-// }
-// function ReadyBookmark({name, url, index, parentId} = {}) {
-//     return {
-//         title: name,
-//         url,
-//         index,
-//         parentId
-//     };
-// }
+function DecodeBookmark(bookmark) {
+    return {
+        bookmarkId: bookmark.id,
+        isFolder: (!bookmark.url),
+        url: bookmark.url,
+        name: bookmark.title,
+        bookmarkParentId: bookmark.parentId
+    }
+}
+
+function EncodeBookmark(bookmark) {
+    return {
+        title: bookmark.name,
+        url: (bookmark.isFolder) ? null : bookmark.url,
+        parentId: bookmark.bookmarkParentId,
+        index: bookmark.index
+    };
+}

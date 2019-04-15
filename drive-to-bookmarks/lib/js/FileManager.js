@@ -10,7 +10,7 @@ export default class FileManager {
                 let files = new Map();
 
                 for (let file of result.files) {
-                    files.set(file.id, file);
+                    files.set(file.id, DecodeFile(file));
                 }
 
                 resolve(files);
@@ -19,12 +19,16 @@ export default class FileManager {
     }
 }
 
-// function SimplifyFile({id, mimeType, name, parents, url}) {
-//     return {
-//         id,
-//         isFolder: (mimeType == 'application/vnd.google-apps.folder'),
-//         url,
-//         name,
-//         parentIds: parents
-//     };
-// }
+function DecodeFile(file) {
+    return {
+        fileId: file.id,
+        isFolder: (file.mimeType == 'application/vnd.google-apps.folder'),
+        url: file.webViewLink,
+        name: file.name,
+        fileParentIds: new Set(file.parents)
+    }
+}
+
+function EncodeFile(file) {
+    return {};
+}
