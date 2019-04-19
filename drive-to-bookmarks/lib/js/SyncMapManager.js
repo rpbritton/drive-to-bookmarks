@@ -1,73 +1,187 @@
 export default class SyncMapManager {
-    constructor(map = []) {
-        this.files = new Map();
-        this.bookmarks = new Map();
+    constructor(account) {
+        this.account = account;
 
-        for (let [file, bookmarks] of map) {
-            this.files.set(file, new Set(bookmarks));
+        if (!Array.isArray(this.account.get('nodes'))) {
+            this.account.set('nodes', []);
+        }
+        this.nodes = this.account.get('nodes');
 
-            for (let bookmark of bookmarks) {
-                this.bookmarks.set(bookmark, file);
+        this.file = new FileMap(this.nodes);
+        this.bookmark = new BookmarkMap(this.nodes);
+    }
+
+    add(nodes) {
+        if (!(nodes instanceof Map)) {
+            if (nodes.id) {
+                nodes = new Map([[nodes.id, nodes]]);
+            }
+            else {
+                return;
+            }
+        }
+
+        let nodesToCheck = new Map(nodes);
+
+        let checkNode = node => {
+            nodesToCheck.delete(node.id);
+
+            if (!Array.isArray(node.parents)) {
+                return;
+            }
+
+            for (let parentId of node.parents) {
+                if (nodesToCheck.has(parentId)) {
+                    checkNode(nodesToCheck.get(parentId));
+                }
+
+                if (!this.file.has(parentId) && parentId != this.account.get('rootFileId')) {
+                    node.parents.splice(node.parents.indexOf(parentId), 1);
+                }
+            }
+
+            if (node.parents.length > 0) {
+                if (this.file.has(node.id)) {
+                    update(this.file.get(node.id), node);
+                }
+                else {
+                    this.nodes.push(node);
+                    this.file.setNode(node);
+                    this.bookmark.setNode(node);
+                }
+            }
+        };
+
+        for (let [nodeId, node] of nodesToCheck) {
+            checkNode(node);
+        }
+    }
+
+    remove(node) {
+        if (this.nodes.includes(node)) {
+            this.nodes.splice(this.nodes.indexOf(node), 1);
+            this.file.deleteNode(node);
+            this.bookmark.deleteNode(node);
+        }
+    }
+
+    update(node, changes = {}) {
+        Object.assign(node, changes);
+    }
+
+    getAll() {
+        return this.nodes;
+    }
+}
+
+class BetterMap extends Map {
+    constructor() {
+        super();
+    }
+
+    getAll() {
+        return new Set([...super.keys()]);
+    }
+}
+
+class FileMap extends BetterMap {
+    constructor(nodes) {
+        super();
+        this.nodes = nodes;
+
+        for (let node of this.nodes) {
+            add(node);
+        }
+    }
+
+    setNode(node) {
+        super.set(node.id, node);
+    }
+
+    deleteNode(node) {
+        super.delete(node.id);
+    }
+
+    set(fileId, node) {
+        node.id = fileId;
+        super.set(fileId, node);
+    }
+
+    delete(fileId) {
+        super.delete(fileId);
+    }
+}
+
+class BookmarkMap extends BetterMap {
+    constructor(nodes) {
+        super();
+        this.nodes = nodes;
+
+        for (let node of this.nodes) {
+            add(node);
+        }
+    }
+
+    setNode(node) {
+        if (Array.isArray(node.linkBookmarks)) {
+            for (let bookmarkId of node.linkBookmarks) {
+                super.set(bookmarkId, node);
+            }
+        }
+
+        if (node.isFolder && Array.isArray(node.folderBookmarks)) {
+            for (let bookmarkId of node.folderBookmarks) {
+                super.set(bookmarkId, node);
             }
         }
     }
-    
-    getFile(file) {
-        return this.files.get(file);
-    }
 
-    getBookmark(bookmark) {
-        return this.bookmarks.get(bookmark);
-    }
-
-    getAllFiles() {
-        return new Set([...this.files.keys()]);
-    }
-
-    getAllBookmarks() {
-        return new Set([...this.bookmarks.keys()]);
-    }
-
-    hasFile(file) {
-        return this.files.has(file);
-    }
-
-    hasBookmark(bookmark) {
-        return this.bookmark.has(bookmark);
-    }
-
-    set(file, bookmark) {
-        if (!this.files.has(file)) {
-            this.files.set(file, new Set());
+    deleteNode(node) {
+        for (let bookmarkId of node.linkBookmarks) {
+            super.delete(bookmarkId);
         }
-        this.files.get(file).add(bookmark);
 
-        this.bookmarks.set(bookmark, file);
-    }
-
-    removeFile(file) {
-        if (this.files.has(file)) {
-            for (let bookmark of this.files.get(file)) {
-                this.bookmarks.delete(bookmark);
+        if (node.isFolder) {
+            for (let bookmarkId of node.folderBookmarkId) {
+                super.delete(bookmarkId);
             }
-            this.files.delete(file);
         }
     }
 
-    removeBookmark(bookmark) {
-        if (this.bookmarks.has(bookmark)) {
-            this.files.get(this.bookmarks.get(bookmark)).delete(bookmark);
-            this.bookmarks.delete(bookmark);
+    set(bookmarkId, node, isFolder = false) {
+        super.set(bookmarkId, node);
+        if (isFolder) {
+            if (!Array.isArray(node.folderBookmarks)) {
+                node.folderBookmarks = [];
+            }
+
+            if (!node.folderBookmarks.includes(bookmarkId)) {
+                node.folderBookmarks.push(bookmarkId);
+            }
+        }
+        else {
+            if (!Array.isArray(node.linkBookmarks)) {
+                node.linkBookmarks = [];
+            }
+
+            if (!node.linkBookmarks.includes(bookmarkId)) {
+                node.linkBookmarks.push(bookmarkId);
+            }
         }
     }
 
-    save() {
-        let map = [];
+    delete(bookmarkId) {
+        if (super.has(bookmarkId)) {
+            let node = super.get(bookmarkId);
 
-        for (let [file, bookmarks] of this.files) {
-            map.push([file, [...bookmarks]]);
+            if (!node.linkBookmarks.includes(bookmarkId)) {
+                node.linkBookmarks.splice(node.linkBookmarks.indexOf(bookmarkId), 1);
+            }
+            else if (node.isFolder && !node.folderBookmarks.includes(bookmarkId)) {
+                node.folderBookmarks.splice(node.folderBookmarks.indexOf(bookmarkId, 1));
+            }
+
+            super.delete(bookmarkId);
         }
-
-        return map;
     }
 }

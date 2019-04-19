@@ -106,7 +106,6 @@ function _saveAccounts() {
     let accounts = AccountManager.getAll();
 
     for (let account of accounts) {
-        account.save();
         accountsInfos.push(account.getAll());
     }
 

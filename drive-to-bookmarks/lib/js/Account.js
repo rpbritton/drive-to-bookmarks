@@ -35,18 +35,20 @@ export default class Account {
                     account.oauth.get('cloud', {append: '/root'})
                 ]);
             })
-            .then(([profile, rootFolder]) => {
+            .then(([profile, rootFile]) => {
                 account.set('profile', profile);
                 account.set('id', profile.id);
-                account.set('rootFolderId', rootFolder.id);
+                account.set('rootFileId', rootFile.id);
+                account.set('rootFileName', `DriveToBookmarks - ${account.get('profile').email}`);
+                account.set('rootFileBookmarkParent', 1);
 
-                return account.bookmarks.create({
-                    // TODO: ADD DEFAULT PARENT
-                    name: `DriveToBookmarks - ${account.get('profile').email}`
-                })
-            })
-            .then(bookmark => {
-                account.sync.map.set(account.get('rootFolderId'), bookmark.bookmarkId);
+            //     return account.bookmarks.create({
+            //         // TODO: ADD DEFAULT PARENT
+            //         name: `DriveToBookmarks - ${account.get('profile').email}`
+            //     })
+            // })
+            // .then(bookmark => {
+                // account.sync.map.set(account.get('rootFileId'), bookmark.bookmarkId);
 
                 AccountManager.add(account);
 
@@ -56,7 +58,7 @@ export default class Account {
     }
 
     get(keys) {
-        if (keys && keys.constructor === Array) {
+        if (Array.isArray(keys)) {
             let result = {};
 
             for (let key in keys) {
@@ -105,9 +107,5 @@ export default class Account {
 
             AccountManager.remove(this);
         });
-    }
-
-    save() {
-        this.sync.save();
     }
 };

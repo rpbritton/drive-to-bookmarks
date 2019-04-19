@@ -7,13 +7,16 @@ export default class BookmarkManager {
 
     getAll() {
         return new Promise((resolve, reject) => {
-            let treeRequests = [];
-            for (let bookmarkId of this.account.sync.map.getFile(this.account.get('rootFolderId'))) {
-                treeRequests.push(BookmarkAPI.get(bookmarkId));
+            let rootFileId = this.account.get('rootFileId');
+            let rootFile = this.account.sync.map.file.get(rootFileId);
+            if (!rootFile || !rootFile.bookmarks) {
+                resolve(new Map());
+                return;
             }
+            let rootBookmarkId = rootFile.bookmarks[0];
 
-            Promise.all(treeRequests)
-            .then(trees => {
+            BookmarkAPI.get(rootBookmarkId)
+            .then(tree => {
                 let bookmarks = new Map();
 
                 let traverseBookmark = bookmark => {
@@ -25,10 +28,8 @@ export default class BookmarkManager {
                         }
                     }
                 }
-                for (let tree of trees) {
-                    for (let bookmark of tree) {
-                        traverseBookmark(bookmark);
-                    }
+                for (let bookmark of tree) {
+                    traverseBookmark(bookmark);
                 }
 
                 resolve(bookmarks);
@@ -45,8 +46,11 @@ export default class BookmarkManager {
         });
     }
 
-    update(bookmark) {
-        return BookmarkAPI.update(bookmark.bookmarkId, EncodeBookmark(bookmark));
+    update(node) {
+        return new Promise((resolve, reject) => {
+
+            resolve();
+        });
     }
 
     remove(bookmarkId) {
@@ -55,20 +59,36 @@ export default class BookmarkManager {
 }
 
 function DecodeBookmark(bookmark) {
+    let children = [];
+    if (bookmark.children) {
+        for (let child of bookmark.children) {
+            if (typeof child == 'object') {
+                if (child.id) {
+                    children.push(child.id);
+                }
+            }
+            else {
+                children.push(child);
+            }
+        }
+    }
+
     return {
-        bookmarkId: bookmark.id,
-        isFolder: (!bookmark.url),
+        id: bookmark.id,
+        isFolder: (!bookmark.url || bookmark.isFolder),
         url: bookmark.url,
-        name: bookmark.title,
-        bookmarkParentId: bookmark.parentId
+        name: (bookmark.name) ? bookmark.name : bookmark.title,
+        parent: bookmark.parentId,
+        children: children
     }
 }
 
 function EncodeBookmark(bookmark) {
     return {
+        id: bookmark.id,
         title: bookmark.name,
-        url: (bookmark.isFolder) ? null : bookmark.url,
-        parentId: bookmark.bookmarkParentId,
+        url: (!bookmark.isFolder) ? bookmark.url : null,
+        parentId: bookmark.parentId,
         index: bookmark.index
     };
 }

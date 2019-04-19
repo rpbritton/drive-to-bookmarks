@@ -1,14 +1,12 @@
 
-import SyncMapManager from './SyncMapManager.js'
 import AccountManager from './AccountManager.js'
+import SyncMapManager from './SyncMapManager.js';
 
 export default class SyncManager {
     constructor(account) {
         this.account = account;
-        if (!this.account.get('map')) {
-            this.account.set({'map': []});
-        }
-        this.map = new SyncMapManager(this.account.get('map'));
+
+        this.map = new SyncMapManager(this.account);
     }
     
     full() {
@@ -18,107 +16,78 @@ export default class SyncManager {
                 this.account.files.getAll()
             ])
             .then(([bookmarks, files]) => {
-                // Don't process the root folder
-                let rootFolderId = this.account.get('rootFolderId');
-                for (let bookmarkId of this.map.getFile(rootFolderId)) {
-                    bookmarks.delete(bookmarkId);
-                }
+                console.log(bookmarks);
+                console.log(files);
 
-                // console.log(bookmarks);
-                // console.log(files);
-                // console.log(this.map.getAllFiles());
-                // console.log(this.map.getAllBookmarks());
+                // Add new nodes
+                this.map.add(files);
 
-                // Check for similarities
-                for (let fileId of this.map.getAllFiles()) {
-                    if (files.has(fileId)) {
-                    // Update the file if it already exists
-                        let file = files.get(fileId);
-                        file.bookmarkId = this.map.getFile(fileId);
-
-                        for (let bookmarkId of this.map.getFile(fileId)) {
-                            file.bookmarkId = bookmarkId;
-                            this.account.bookmarks.update(file);
-                        }
-
-                        files.delete(fileId);
-                        for (let bookmarkId of this.map.getFile(fileId)) {
-                            bookmarks.delete(bookmarkId);
-                        }
-                    }
-                    else if (fileId != rootFolderId) {
-                    // Remove the file if it doesn't exist in the drive
-                        for (let bookmarkId of this.map.getFile(fileId)) {
-                            this.account.bookmarks.remove(bookmarkId);
-                        }
-                        this.map.removeFile(fileId);
+                // Remove the extra, now non-existent nodes
+                for (let node of this.map.getAll()) {
+                    if (!files.has(node.id)) {
+                        this.map.remove(node);
                     }
                 }
 
-                // Function to allow a recursive bookmark tree building
-                let createBookmarks = possibleParents => {
-                    return new Promise((resolve, reject) => {
-                        let promises = [];
-                        let possibleNewParents = new Set();
+                // // Update found nodes and delete the old
+                // for (let node of this.map.getAll()) {
+                //     if (files.has(node.id)) {
+                //         this.map.update(node, files.get(node.id));
+                //         files.delete(node.id);
+                //     }
+                //     else if (node.id != this.account.get('rootFileId')) {
+                //         this.map.remove(node);
+                //     }
+                // }
 
-                        // Move through files to be added, checking each parent
-                        for (let [fileId, file] of files) {
-                            if (file.fileParentIds.size == 0) {
-                                files.delete(fileId);
-                                continue;
-                            }
+                // // Add missing nodes
+                // for (let [fileId, file] of files) {
+                //     this.map.add(file);
+                // }
 
-                            for (let fileParentId of file.fileParentIds) {
-                                if (possibleParents.has(fileParentId)) {
-                                    for (let bookmarkParentId of this.map.getFile(fileParentId)) {
-                                        file.bookmarkParentId = bookmarkParentId;
+                console.log(this.map.nodes);
 
-                                        promises.push(
-                                            this.account.bookmarks.create(file)
-                                            .then(bookmark => {
-                                                this.map.set(fileId, bookmark.bookmarkId);
+                // Remove missing parents
+                // let nodesToCheck = new Set(this.map.getAll());
+                // let checkNode = node => {
+                //     nodesToCheck.delete(node);
 
-                                                file.fileParentIds.delete(fileParentId);
 
-                                                if (bookmark.isFolder) {
-                                                    possibleNewParents.add(fileId);
-                                                }
-                                                
-                                                return Promise.resolve();
-                                            })
-                                        );
-                                    }
-                                }
-                            }
-                        }
+                // }
+                // for (let node of nodesToCheck) {
+                //     checkNode(node);
+                // }
 
-                        Promise.all(promises)
-                        .then(() => {
-                            if (possibleNewParents.size != 0) {
-                                createBookmarks(possibleNewParents)
-                                .then(() => {
-                                    resolve();
-                                });
-                            }
-                            else {
-                                resolve();
-                            }
-                        });
-                    });
-                }
-                createBookmarks(this.map.getAllFiles())
-                .then(() => {
-                    AccountManager.refresh(this.account);
-                });
+                // Sync nodes with bookmarks
+                // for (let node of this.nodes) {
+                //     this.account.bookmarks.update(node);
+                // }
+                // this.account.bookmarks.updateAll(this.nodes);
 
-                for (let [bookmarkId, bookmark] of bookmarks) {
-                    this.account.bookmarks.remove(bookmarkId);
-                }
+                // let nodesToCheck = new Set(this.nodes);
+
+                // let checkNode = node => {
+                //     nodesToCheck.delete(node);
+
+                //     let promises = [];
+
+                //     for (let parentId of node.parents) {
+                //         let parentNode = this.map.file.get(parentId);
+                //         if (nodesToCheck.has(parentNode)) {
+                //             promises.push(checkNode(parentNode));
+                //         }
+                //     }
+
+                //     Promise.all(promises)
+                //     .then(() => {
+                //         this.account.bookmarks.update(node);
+                //     });
+                // }
+                
+                // for (let node of nodesToCheck) {
+                //     checkNode(node);
+                // }
             });
         });
-    }
-
-    save() {
-        this.account.set('map', this.map.save());
     }
 }
