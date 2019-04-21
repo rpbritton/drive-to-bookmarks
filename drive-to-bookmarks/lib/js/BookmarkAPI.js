@@ -1,11 +1,15 @@
 export default class BookmarkAPI {
-    static create(details) {
-        if (!details) {
-            return;
-        }
+    static create({parentId, url, title, index} = {}) {
+        parentId += "";
 
         return new Promise((resolve, reject) => {
-            chrome.bookmarks.create(details, bookmark => {
+            chrome.bookmarks.create({parentId, url, title, index}, bookmark => {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError);
+                    reject(Error(chrome.runtime.lastError));
+                    return;
+                }
+
                 resolve(bookmark);
             });
         });
@@ -19,21 +23,35 @@ export default class BookmarkAPI {
         });
     }
 
-    static update(bookmarkId, changes) {
+    static update(bookmarkId, {parentId, url, title, index}) {
+        parentId += "";
+
         return Promise.all([
             new Promise((resolve, reject) => {
                 chrome.bookmarks.update(bookmarkId, {
-                    title: changes.title,
-                    url: changes.url
+                    title: title,
+                    url: url
                 }, bookmark => {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                        reject(Error(chrome.runtime.lastError));
+                        return;
+                    }
+
                     resolve();
                 });
             }),
             new Promise((resolve, reject) => {
                 chrome.bookmarks.move(bookmarkId, {
-                    parentId: changes.parentId,
-                    index: changes.index
+                    parentId: parentId,
+                    index: index
                 }, bookmark => {
+                    if (chrome.runtime.lastError) {
+                        console.error(chrome.runtime.lastError);
+                        reject(Error(chrome.runtime.lastError));
+                        return;
+                    }
+
                     resolve();
                 })
             })

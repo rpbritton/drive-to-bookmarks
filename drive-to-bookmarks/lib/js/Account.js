@@ -40,7 +40,7 @@ export default class Account {
                 account.set('id', profile.id);
                 account.set('rootFileId', rootFile.id);
                 account.set('rootFileName', `DriveToBookmarks - ${account.get('profile').email}`);
-                account.set('rootFileBookmarkParent', 1);
+                account.set('rootBookmarkParentId', 1);
 
             //     return account.bookmarks.create({
             //         // TODO: ADD DEFAULT PARENT

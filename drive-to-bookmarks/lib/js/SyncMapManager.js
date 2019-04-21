@@ -13,7 +13,7 @@ export default class SyncMapManager {
 
     add(nodes) {
         if (!(nodes instanceof Map)) {
-            if (nodes.id) {
+            if (!!nodes.id) {
                 nodes = new Map([[nodes.id, nodes]]);
             }
             else {
@@ -35,14 +35,14 @@ export default class SyncMapManager {
                     checkNode(nodesToCheck.get(parentId));
                 }
 
-                if (!this.file.has(parentId) && parentId != this.account.get('rootFileId')) {
+                if (!this.file.has(parentId)) {
                     node.parents.splice(node.parents.indexOf(parentId), 1);
                 }
             }
 
-            if (node.parents.length > 0) {
+            if (node.parents.length > 0 || node.id == this.account.get('rootFileId')) {
                 if (this.file.has(node.id)) {
-                    update(this.file.get(node.id), node);
+                    this.update(this.file.get(node.id), node);
                 }
                 else {
                     this.nodes.push(node);
@@ -90,7 +90,7 @@ class FileMap extends BetterMap {
         this.nodes = nodes;
 
         for (let node of this.nodes) {
-            add(node);
+            this.setNode(node);
         }
     }
 
@@ -118,7 +118,7 @@ class BookmarkMap extends BetterMap {
         this.nodes = nodes;
 
         for (let node of this.nodes) {
-            add(node);
+            this.setNode(node);
         }
     }
 

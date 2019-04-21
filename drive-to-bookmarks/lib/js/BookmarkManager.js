@@ -3,6 +3,8 @@ import BookmarkAPI from './BookmarkAPI.js'
 export default class BookmarkManager {
     constructor(account) {
         this.account = account;
+
+        this.bookmarks = new Map();
     }
 
     getAll() {
@@ -46,14 +48,135 @@ export default class BookmarkManager {
         });
     }
 
-    update(node) {
-        return new Promise((resolve, reject) => {
+    update(nodes) {
+        let nodesToUpdate = (Array.isArray(nodes)) ? new Set(nodes) : new Set([nodes]);
 
-            resolve();
-        });
+        let updateBookmark = node => {
+            nodesToUpdate.delete(node);
+
+            let promisesOfParentBookmarkIds = [];
+
+            for (let parentId of node.parents) {
+                let parentNode = this.account.sync.map.file.get(parentId);
+
+                if (nodesToUpdate.has(parentNode)) {
+                    promisesOfParentBookmarkIds.push(
+                        updateBookmark(parentNode)
+                        .then(() => {
+                            return Promise.resolve(parentNode.folderBookmarks);
+                        })
+                    );
+                }
+                else {
+                    promisesOfParentBookmarkIds.push(parentNode.folderBookmarks);
+                }
+            }
+
+            return Promise.all(promisesOfParentBookmarkIds)
+            .then(arraysOfParentBookmarkIds => {
+                let bookmark = EncodeBookmark({...node, isFolder: false});
+                let parentBookmarkIds = arraysOfParentBookmarkIds.flat();
+                let promises = [];
+
+                if (node.id == this.account.get('rootFileId')) {
+                    // parentBookmarkIds.push(this.account.get('rootBookmarkParentId'));
+                    parentBookmarkIds.push(1);
+                }
+
+                if (!Array.isArray(node.linkBookmarks)) {
+                    node.linkBookmarks = [];
+                }
+                if (node.isFolder && !Array.isArray(node.folderBookmarks)) {
+                    node.folderBookmarks = [];
+                }
+
+                while (node.linkBookmarks.length > parentBookmarkIds.length) {
+                    remove(node.linkBookmarks.pop());
+                    if (node.isFolder) {
+                        remove(node.folderBookmarks.pop());
+                    }
+                }
+
+                for (let index = 0; index < node.linkBookmarks; index++) {
+                    // Catch update errors just by removing the bookmarks from the index
+                    // Problem: Need to smoothly transition down
+                    // Maybe parse array for nulls?
+
+                    // Make sure bookmarks are here!!
+
+                    if (node.isFolder) {
+                        promises.push(Promise.all([
+                            BookmarkAPI.update(node.folderBookmarks[index], {
+                                ...bookmark, 
+                                parentId: parentBookmarkIds[index],
+                                url: null
+                            }),
+                            BookmarkAPI.update(node.linkBookmarks[index], {
+                                ...bookmark,
+                                parentId: node.folderBookmarks[index]
+                            })
+                        ]));
+                    }
+                    else {
+                        promises.push(BookmarkAPI.update(node.linkBookmarks[index], {
+                            ...bookmark,
+                            parentId: parentBookmarkIds[index]
+                        }));
+                    }
+                }
+
+                for (let index = node.linkBookmarks.length; index < parentBookmarkIds.length; index++) {
+                    if (node.isFolder) {
+                        promises.push(BookmarkAPI.create({
+                            ...bookmark,
+                            parentId: parentBookmarkIds[index],
+                            url: null
+                        })
+                        .then(folderBookmark => {
+                            this.account.sync.map.bookmark.set(folderBookmark.id, node, true);
+
+                            return BookmarkAPI.create({
+                                ...bookmark,
+                                parentId: node.folderBookmarks[index]
+                            })
+                            .then(linkBookmark => {
+                                this.account.sync.map.bookmark.set(linkBookmark.id, node);
+
+                                return Promise.resolve();
+                            });
+                        }));
+                    }
+                    else {
+                        promises.push(BookmarkAPI.create({
+                            ...bookmark,
+                            parentId: parentBookmarkIds[index]
+                        })
+                        .then(bookmark => {
+                            this.account.sync.map.bookmark.set(bookmark.id, node);
+                        }));
+                    }
+                }
+
+                return Promise.all(promises);
+            });
+        }
+
+        let updateBookmarks = () => {
+            if (nodesToUpdate.size == 0) {
+                return Promise.resolve();
+            }
+
+            return updateBookmark(nodesToUpdate.values().next().value)
+            .then(() => {
+                return updateBookmarks();
+            });
+        }
+        return updateBookmarks();
     }
 
     remove(bookmarkId) {
+        this.account.sync.map.bookmark.delete(bookmarkId);
+
         return BookmarkAPI.remove(bookmarkId);
     }
 }

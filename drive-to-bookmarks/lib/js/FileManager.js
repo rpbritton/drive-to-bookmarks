@@ -10,7 +10,7 @@ export default class FileManager {
                 let root = DecodeFile({
                     id: this.account.get('rootFileId'),
                     isFolder: true,
-                    name: this.account.get('rootFileId'),
+                    name: this.account.get('rootFileName'),
                     url: 'https://drive.google.com/drive/'
                 });
                 let files = new Map([[root.id, root]]);
@@ -19,22 +19,22 @@ export default class FileManager {
                     files.set(file.id, DecodeFile(file));
                 }
 
-                for (let [fileId, file] of files) {
-                    for (let parentId of file.parents) {
-                        if (files.has(parentId)) {
-                            files.get(parentId).children.push(fileId);
-                        }
-                        else {
-                            file.parents.splice(file.parents.indexOf(parentId), 1);
-                        }
-                    }
-                }
+                // for (let [fileId, file] of files) {
+                //     for (let parentId of file.parents) {
+                //         if (files.has(parentId)) {
+                //             files.get(parentId).children.push(fileId);
+                //         }
+                //         else {
+                //             file.parents.splice(file.parents.indexOf(parentId), 1);
+                //         }
+                //     }
+                // }
 
-                for (let [fileId, file] of files) {
-                    if (file.parents.length == 0) {
-                        files.delete(fileId);
-                    }
-                }
+                // for (let [fileId, file] of files) {
+                //     if (file.parents.length == 0 && file.id != ) {
+                //         files.delete(fileId);
+                //     }
+                // }
 
                 resolve(files);
             });
