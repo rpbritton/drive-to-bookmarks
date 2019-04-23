@@ -3,31 +3,31 @@ import AccountProviders from './AccountProviders.js'
 
 class AccountManagerBackground {
     constructor() {
-        this._accounts = [];
+        this.accounts = [];
     }
 
-    reset() {
-        return new Promise((resolve, reject) => {
-            for (let account in this._accounts) {
-                this.dispatchEvent('remove', account);
-            }
-            this._accounts = [];
+    start() {
+        for (let account in this.accounts) {
+            this.dispatchEvent('remove', account);
+        }
+        this.accounts = [];
 
-            StorageAPI.get('accounts')
-            .then(accountsInfo => {
-                if (accountsInfo && accountsInfo.constructor === Array) {
-                    for (let info of accountsInfo) {
-                        this._accounts.push(new (AccountProviders.get(info.provider))(info));
+        return StorageAPI.get('accounts')
+        .then(accountsInfo => {
+            if (Array.isArray(accountsInfo)) {
+                for (let info of accountsInfo) {
+                    this.accounts.push(new (AccountProviders.get(info.provider))(info));
 
-                        this.dispatchEvent('add', this._accounts[this._accounts.length - 1]);
-                    }
-                } 
-                else {
-                    _saveAccounts();
+                    this.accounts[this.accounts.length - 1].start();
+
+                    this.dispatchEvent('add', this.accounts[this.accounts.length - 1]);
                 }
+            } 
+            else {
+                saveAccounts();
+            }
 
-                resolve();
-            });
+            return Promise.resolve();
         });
     }
 
@@ -47,40 +47,40 @@ class AccountManagerBackground {
             old_account.set(account.get());
         }
         else {
-            this._accounts.push(account);
+            this.accounts.push(account);
 
             this.dispatchEvent('add', account);
 
-            _saveAccounts();
+            saveAccounts();
         }
     }
 
     remove(account) {
-        let index = this._accounts.findIndex(testAccount => {
+        let index = this.accounts.findIndex(testAccount => {
             return account.get('id') == testAccount.get('id');
         });
 
-        this._accounts.splice(index, 1);
+        this.accounts.splice(index, 1);
 
         this.dispatchEvent('remove', account);
 
-        _saveAccounts();
+        saveAccounts();
     }
 
     refresh(account) {
         this.dispatchEvent('update', account);
 
-        _saveAccounts();
+        saveAccounts();
     }
 
     get(accountId) {
-        return this._accounts.find(testAccount => {
+        return this.accounts.find(testAccount => {
             return testAccount.get('id') == accountId;
         });
     }
 
     getAll() {
-        return this._accounts;
+        return this.accounts;
     }
 
     get changes() {
@@ -100,12 +100,13 @@ class AccountManagerBackground {
     }
 }
 
-function _saveAccounts() {
+function saveAccounts() {
     let accountsInfos = [];
 
     let accounts = AccountManager.getAll();
 
     for (let account of accounts) {
+        account.save();
         accountsInfos.push(account.getAll());
     }
 

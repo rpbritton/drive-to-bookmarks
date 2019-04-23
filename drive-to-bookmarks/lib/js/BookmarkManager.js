@@ -1,41 +1,44 @@
 import BookmarkAPI from './BookmarkAPI.js'
+import BookmarkListManager from './BookmarkListManager.js';
 
 export default class BookmarkManager {
     constructor(account) {
         this.account = account;
 
-        this.bookmarks = new Map();
+        this.list = new BookmarkListManager(account);
     }
 
-    getAll() {
-        return new Promise((resolve, reject) => {
-            let rootFileId = this.account.get('rootFileId');
-            let rootFile = this.account.sync.map.file.get(rootFileId);
-            if (!rootFile || !rootFile.bookmarks) {
-                resolve(new Map());
-                return;
-            }
-            let rootBookmarkId = rootFile.bookmarks[0];
+    start() {
+        // this.refresh();
+    }
 
-            BookmarkAPI.get(rootBookmarkId)
-            .then(tree => {
-                let bookmarks = new Map();
+    refresh() {
+        let rootFileId = this.account.get('rootFileId');
+        let rootFile = this.account.sync.map.file.get(rootFileId);
+        if (!rootFile || !rootFile.bookmarks) {
+            resolve(new Map());
+            return;
+        }
+        let rootBookmarkId = rootFile.bookmarks[0];
 
-                let traverseBookmark = bookmark => {
-                    bookmarks.set(bookmark.id, DecodeBookmark(bookmark));
+        return BookmarkAPI.get(rootBookmarkId)
+        .then(tree => {
+            let bookmarks = new Map();
 
-                    if (bookmark.children) {
-                        for (let child of bookmark.children) {
-                            traverseBookmark(child);
-                        }
+            let traverseBookmark = bookmark => {
+                bookmarks.set(bookmark.id, DecodeBookmark(bookmark));
+
+                if (bookmark.children) {
+                    for (let child of bookmark.children) {
+                        traverseBookmark(child);
                     }
                 }
-                for (let bookmark of tree) {
-                    traverseBookmark(bookmark);
-                }
+            }
+            for (let bookmark of tree) {
+                traverseBookmark(bookmark);
+            }
 
-                resolve(bookmarks);
-            });
+            return Promise.resolve(bookmarks);
         });
     }
 

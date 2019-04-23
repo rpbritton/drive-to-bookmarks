@@ -17,8 +17,8 @@ export default class SyncManager {
                 // console.log(bookmarks);
                 console.log(files);
 
-                // Add new nodes
-                this.map.add(files);
+                // // Add new nodes
+                // this.map.add(files);
 
                 // // Remove the extra, now non-existent nodes
                 // for (let node of this.map.getAll()) {

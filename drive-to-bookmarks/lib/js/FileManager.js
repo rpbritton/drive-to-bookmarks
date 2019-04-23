@@ -1,43 +1,42 @@
+import FileListManager from './FileListManager.js'
+
 export default class FileManager {
     constructor(account) {
         this.account = account;
+        this.list = new FileListManager(this.account);
+
+        // this.load();
     }
 
-    getAll() {
-        return new Promise((resolve, reject) => {
-            this.account.oauth.get('cloud', {params: this.account.urls.cloud.files})
-            .then(result => {
-                let root = DecodeFile({
-                    id: this.account.get('rootFileId'),
-                    isFolder: true,
-                    name: this.account.get('rootFileName'),
-                    url: 'https://drive.google.com/drive/'
-                });
-                let files = new Map([[root.id, root]]);
+    start() {
+        this.refresh();
+    }
 
-                for (let file of result.files) {
-                    files.set(file.id, DecodeFile(file));
-                }
-
-                // for (let [fileId, file] of files) {
-                //     for (let parentId of file.parents) {
-                //         if (files.has(parentId)) {
-                //             files.get(parentId).children.push(fileId);
-                //         }
-                //         else {
-                //             file.parents.splice(file.parents.indexOf(parentId), 1);
-                //         }
-                //     }
-                // }
-
-                // for (let [fileId, file] of files) {
-                //     if (file.parents.length == 0 && file.id != ) {
-                //         files.delete(fileId);
-                //     }
-                // }
-
-                resolve(files);
+    refresh() {
+        return this.account.oauth.get('cloud', { params: this.account.urls.cloud.files })
+        .then(result => {
+            let root = DecodeFile({
+                id: this.account.get('rootFileId'),
+                isFolder: true,
+                name: this.account.get('rootFileName'),
+                url: 'https://drive.google.com/drive/'
             });
+            let files = new Map([[root.id, root]]);
+
+            for (let file of result.files) {
+                files.set(file.id, DecodeFile(file));
+            }
+
+            this.list.add(files);
+
+            // Remove the extra, now non-existent nodes
+            for (let fileId of this.list.getAll()) {
+                if (!files.has(fileId)) {
+                    this.list.delete(fileId);
+                }
+            }
+
+            console.log(this.list);
         });
     }
 }
@@ -48,8 +47,7 @@ function DecodeFile(file) {
         isFolder: (file.mimeType == 'application/vnd.google-apps.folder' || !!file.isFolder),
         url: (!!file.url) ? file.url : file.webViewLink,
         name: file.name,
-        parents: (Array.isArray(file.parents)) ? file.parents : [],
-        children: (Array.isArray(file.children)) ? file.children : []
+        parents: new Set(file.parents)
     }
 }
 
