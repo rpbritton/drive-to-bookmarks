@@ -1,41 +1,31 @@
-export default class MapManager {
+export default class SyncListManager {
     constructor(account) {
         this.account = account;
 
-        if (!Array.isArray(this.account.get('map'))) {
-            this.account.set('map', []);
+        if (!Array.isArray(this.account.get('syncMap'))) {
+            this.account.set('syncMap', []);
         }
 
-        this.files = new FileMap(this);
-        this.bookmarks = new BookmarkMap(this);
-    }
-
-    set(fileId, bookmarkId) {
-        if (!fileId) {
-            return;
-        }
-
-        this.files.set(fileId, bookmarkId);
+        this.files = new FileMap(this.account);
+        this.bookmarks = new BookmarkMap(this.account);
     }
 
     save() {
-        this.account.set('map', [...this.files.entries()]);
+        this.account.set('syncMap', [...this.files.entries()]);
     }
 }
 
 class BetterMap extends Map {
-    getAll() {
-        return [...super.keys()];
-    }
+    getAll() { return [...super.keys()]; }
 }
 
 class FileMap extends BetterMap {
-    constructor(mapManager) {
+    constructor(account) {
         super();
 
-        this.map = mapManager;
+        this.account = account;
 
-        for (let [fileId, bookmarkIds] of this.map.account.get('map')) {
+        for (let [fileId, bookmarkIds] of this.account.get('syncMap')) {
             if (Array.isArray(bookmarkIds)) {
                 super.set(fileId, bookmarkIds);
             }

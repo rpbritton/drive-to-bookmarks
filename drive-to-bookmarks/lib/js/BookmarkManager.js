@@ -9,7 +9,24 @@ export default class BookmarkManager {
     }
 
     start() {
-        // this.refresh();
+        this.refresh();
+    }
+
+    sync() {
+        let newFileIds = this.account.files.list.getAll();
+
+        for (let fileId of this.map.files.getAll()) {
+            if (newFileIds.has(fileId)) {
+                newFileIds.delete(fileId);
+            }
+            else {
+                this.map.files.delete(fileId);
+            }
+        }
+
+        for (let fileId of newFileIds) {
+            this.map.files.set(fileId);
+        }
     }
 
     refresh() {

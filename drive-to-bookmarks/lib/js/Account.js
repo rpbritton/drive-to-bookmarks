@@ -1,7 +1,6 @@
 import OAuthManager from './OAuthManager.js'
 import AccountManager from './AccountManager.js'
-// import SyncManager from './SyncManager.js'
-import MapManager from './MapManager.js'
+import SyncManager from './SyncManager.js'
 import FileManager from './FileManager.js'
 import BookmarkManager from './BookmarkManager.js'
 
@@ -15,7 +14,7 @@ export default class Account {
         Object.assign(this._info, info);
 
         this.oauth = new OAuthManager(this);
-        this.map = new MapManager(this);
+        this.sync = new SyncManager(this);
         this.files = new FileManager(this);
         this.bookmarks = new BookmarkManager(this);
     }
@@ -64,7 +63,7 @@ export default class Account {
     }
 
     save() {
-        this.map.save();
+        this.sync.save();
     }
 
     get(keys) {

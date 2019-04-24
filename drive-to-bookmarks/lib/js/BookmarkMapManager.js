@@ -1,25 +1,9 @@
-export default class MapManager {
+export default class BookmarkMapManager {
     constructor(account) {
         this.account = account;
 
-        if (!Array.isArray(this.account.get('map'))) {
-            this.account.set('map', []);
-        }
-
-        this.files = new FileMap(this);
-        this.bookmarks = new BookmarkMap(this);
-    }
-
-    set(fileId, bookmarkId) {
-        if (!fileId) {
-            return;
-        }
-
-        this.files.set(fileId, bookmarkId);
-    }
-
-    save() {
-        this.account.set('map', [...this.files.entries()]);
+        this.files = new FileMap();
+        this.bookmarks = new BookmarkMap();
     }
 }
 
