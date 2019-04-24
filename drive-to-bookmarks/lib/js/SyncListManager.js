@@ -16,7 +16,7 @@ export default class SyncListManager {
 }
 
 class BetterMap extends Map {
-    getAll() { return [...super.keys()]; }
+    getAll() { return new Set([...super.keys()]); }
 }
 
 class FileMap extends BetterMap {
@@ -36,13 +36,17 @@ class FileMap extends BetterMap {
     }
 
     set(fileId, bookmarkId) {
+        if (!fileId) {
+            return;
+        }
+
         if (!super.has(fileId)) {
             super.set(fileId, []);
         }
 
-        if (!!bookmarkId) {
+        if (!!bookmarkId && !super.get(fileId).includes(bookmarkId)) {
             super.get(fileId).push(bookmarkId);
-            this.map.bookmarks.set(bookmarkId, fileId);
+            this.account.sync.list.bookmarks.set(bookmarkId, fileId);
         }
     }
 
@@ -52,19 +56,19 @@ class FileMap extends BetterMap {
             super.delete(fileId);
 
             for (let bookmarkId of bookmarkIds) {
-                this.map.bookmarks.delete(bookmarkId);
+                this.account.sync.list.bookmarks.delete(bookmarkId);
             }
         }
     }
 }
 
 class BookmarkMap extends BetterMap {
-    constructor(mapManager) {
+    constructor(account) {
         super();
 
-        this.map = mapManager;
+        this.account = account;
 
-        for (let [fileId, bookmarkIds] of this.map.account.get('map')) {
+        for (let [fileId, bookmarkIds] of this.account.get('syncMap')) {
             if (Array.isArray(bookmarkIds)) {
                 for (let bookmarkId of bookmarkIds) {
                     super.set(bookmarkId, fileId);
@@ -73,13 +77,25 @@ class BookmarkMap extends BetterMap {
         }
     }
 
+    set(bookmarkId, fileId) {
+        // if (super.has(bookmarkId)) {
+        //     this.delete(bookmarkId);
+        // }
+        super.set(bookmarkId, fileId);
+
+        // let fileBookmarkIds = this.account.sync.list.files.get(fileId);
+        if (!this.account.sync.list.files.has(fileId) || !this.account.sync.list.files.get(fileId).includes(bookmarkId)) {
+            this.account.sync.list.files.set(fileId, bookmarkId);
+        }
+    }
+
     delete(bookmarkId) {
         if (super.has(bookmarkId)) {
             let fileId = super.get(bookmarkId);
             super.delete(bookmarkId);
 
-            if (this.map.files.has(fileId)) {
-                let bookmarkIds = this.map.files.get(fileId);
+            if (this.account.sync.list.files.has(fileId)) {
+                let bookmarkIds = this.account.sync.list.files.get(fileId);
 
                 bookmarkIds.splice(bookmarkIds.indexOf(bookmarkId), 1);
             }

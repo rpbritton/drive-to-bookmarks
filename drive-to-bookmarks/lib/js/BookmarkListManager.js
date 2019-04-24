@@ -8,7 +8,4 @@ export default class BookmarkListManager extends Map {
     getAll() {
         return new Set([...super.keys()]);
     }
-
-    add(bookmarks) {
-    }
 }

@@ -26,22 +26,22 @@ export default class BookmarkAPI {
     static update(bookmarkId, {parentId, url, title, index}) {
         parentId += "";
 
-        return Promise.all([
-            new Promise((resolve, reject) => {
-                chrome.bookmarks.update(bookmarkId, {
-                    title: title,
-                    url: url
-                }, bookmark => {
-                    if (chrome.runtime.lastError) {
-                        console.error(chrome.runtime.lastError);
-                        reject(Error(chrome.runtime.lastError));
-                        return;
-                    }
+        return new Promise((resolve, reject) => {
+            chrome.bookmarks.update(bookmarkId, {
+                title: title,
+                url: url
+            }, bookmark => {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError);
+                    reject(Error(chrome.runtime.lastError));
+                    return;
+                }
 
-                    resolve();
-                });
-            }),
-            new Promise((resolve, reject) => {
+                resolve(bookmark);
+            });
+        })
+        .then(bookmark => {
+            return new Promise((resolve, reject) => {
                 chrome.bookmarks.move(bookmarkId, {
                     parentId: parentId,
                     index: index
@@ -52,10 +52,13 @@ export default class BookmarkAPI {
                         return;
                     }
 
-                    resolve();
-                })
-            })
-        ]);
+                    resolve(bookmark);
+                });
+            });
+        })
+        .then(bookmark => {
+            resolve(bookmark);
+        });
     }
 
     static remove(bookmarkId) {

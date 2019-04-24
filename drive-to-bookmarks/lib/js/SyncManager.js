@@ -1,4 +1,4 @@
-import SyncListManager from "./SyncListManager";
+import SyncListManager from "./SyncListManager.js";
 
 export default class SyncManager {
     constructor(account) {
@@ -7,8 +7,8 @@ export default class SyncManager {
         this.list = new SyncListManager(account);
     }
 
-    refresh() {
-        let newFileIds = this.account.files.getAll();
+    full() {
+        let newFileIds = this.account.files.list.getAll();
 
         for (let fileId of this.list.files.getAll()) {
             if (newFileIds.has(fileId)) {
@@ -20,10 +20,10 @@ export default class SyncManager {
         }
 
         for (let fileId of newFileIds) {
-            this.list.files.add(fileId);
+            this.list.files.set(fileId);
         }
 
-        this.account.bookmarks.sync();
+        this.account.bookmarks.sync(this.list.files.getAll());
     }
 
     save() {

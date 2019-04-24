@@ -38,7 +38,7 @@ export default class FileManager {
 
             console.log(this.list);
 
-            this.account.sync.refresh();
+            this.account.sync.full();
         });
     }
 }
