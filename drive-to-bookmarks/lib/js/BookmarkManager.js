@@ -89,6 +89,10 @@ export default class BookmarkManager {
             return Promise.all(promisesOfParentBookmarkIds)
             .then(arraysOfParentBookmarkIds => {
                 let parentBookmarkIds = arraysOfParentBookmarkIds.flat();
+                for (let index in parentBookmarkIds) {
+                    parentBookmarkIds.splice(index + 1, 1);
+                }
+
                 let bookmarkIds = this.account.sync.list.files.get(fileId);
 
                 // Add a 'parent' for the root folder
@@ -125,8 +129,6 @@ export default class BookmarkManager {
                         });
                     }
                 }
-
-                console.log(bookmarks);
 
                 // Remove excess bookmarks in the file's name
                 while (bookmarkIds.length > bookmarks.length) {
@@ -180,18 +182,12 @@ export default class BookmarkManager {
                 return Promise.all(promises);
             })
             .then(arraysOfBookmarks => {
-                // Add bookmarks to sync and list I guess
-
                 let bookmarks = arraysOfBookmarks.flat();
 
                 for (let bookmark of bookmarks) {
-                    console.log("HERE");
                     this.account.sync.list.bookmarks.set(bookmark.id, fileId);
                 }
 
-                console.log(this.account.sync.list.files.get(this.account.get('rootFileId')));
-
-                console.log(bookmarks);
                 return Promise.resolve();
             });
         }

@@ -78,9 +78,9 @@ class BookmarkMap extends BetterMap {
     }
 
     set(bookmarkId, fileId) {
-        // if (super.has(bookmarkId)) {
-        //     this.delete(bookmarkId);
-        // }
+        if (super.get(bookmarkId) != fileId) {
+            this.delete(bookmarkId);
+        }
         super.set(bookmarkId, fileId);
 
         // let fileBookmarkIds = this.account.sync.list.files.get(fileId);
