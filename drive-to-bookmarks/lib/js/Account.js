@@ -1,8 +1,6 @@
 import OAuthManager from './OAuthManager.js'
 import AccountManager from './AccountManager.js'
 import SyncManager from './SyncManager.js'
-import FileManager from './FileManager.js'
-import BookmarkManager from './BookmarkManager.js'
 
 export default class Account {
     constructor(info = {}) {
@@ -15,8 +13,6 @@ export default class Account {
 
         this.oauth = new OAuthManager(this);
         this.sync = new SyncManager(this);
-        this.files = new FileManager(this);
-        this.bookmarks = new BookmarkManager(this);
     }
 
     static add() {
@@ -42,24 +38,11 @@ export default class Account {
                 account.set('rootFileName', `DriveToBookmarks - ${account.get('profile').email}`);
                 account.set('rootBookmarkParentId', 1);
 
-            //     return account.bookmarks.create({
-            //         // TODO: ADD DEFAULT PARENT
-            //         name: `DriveToBookmarks - ${account.get('profile').email}`
-            //     })
-            // })
-            // .then(bookmark => {
-                // account.sync.map.set(account.get('rootFileId'), bookmark.bookmarkId);
-
                 AccountManager.add(account);
 
                 resolve(account);
             });
         });
-    }
-
-    start() {
-        this.files.start();
-        this.bookmarks.start();
     }
 
     save() {

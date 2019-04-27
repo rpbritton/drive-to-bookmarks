@@ -1,11 +1,17 @@
 import BookmarkAPI from './BookmarkAPI.js'
-import BookmarkListManager from './BookmarkListManager.js';
+// import BookmarkListManager from './BookmarkListManager.js';
 
-export default class BookmarkManager {
-    constructor(account) {
-        this.account = account;
+export default class BookmarkManager extends Map {
+    constructor(syncManager) {
+        super();
 
-        this.list = new BookmarkListManager(account);
+        this.sync = syncManager;
+
+        // this.list = new BookmarkListManager(account);
+    }
+
+    getAll() {
+        return new Set([...super.keys()]);
     }
 
     start() {
@@ -13,27 +19,26 @@ export default class BookmarkManager {
     }
 
     refresh() {
-        let rootFileId = this.account.get('rootFileId');
-        let rootBookmarks = this.account.sync.list.files.get(rootFileId);
-        if (!rootBookmarks) {
-            this.list.clear();
+        let rootFileId = this.sync.account.get('rootFileId');
+        let rootBookmarkIds = this.sync.map.files.get(rootFileId);
+        if (!rootBookmarkIds) {
+            super.clear();
             return Promise.resolve();
         }
-        let rootBookmarkId = rootBookmarks[0];
+        let rootBookmarkId = rootBookmarkIds[0];
 
         return BookmarkAPI.get(rootBookmarkId)
         .then(tree => {
-            let oldBookmarkIds = this.list.getAll();
+            let oldBookmarkIds = this.getAll();
 
             let traverseBookmark = bookmark => {
-                if (oldBookmarkIds.has(bookmark.id)) {
-                    oldBookmarkIds.delete(bookmark.id);
-                }
-                this.list.set(bookmark.id, DecodeBookmark(bookmark));
+                oldBookmarkIds.delete(bookmark.id);
+
+                super.set(bookmark.id, DecodeBookmark(bookmark));
 
                 if (bookmark.children) {
-                    for (let child of bookmark.children) {
-                        traverseBookmark(child);
+                    for (let childBookmark of bookmark.children) {
+                        traverseBookmark(childBookmark);
                     }
                 }
             }
@@ -42,7 +47,7 @@ export default class BookmarkManager {
             }
 
             for (let oldBookmarkId of oldBookmarkIds) {
-                this.list.delete(oldBookmarkId);
+                super.delete(oldBookmarkId);
             }
 
             console.log(this.list);
@@ -62,13 +67,12 @@ export default class BookmarkManager {
 
     sync(fileIds) {
         // let fileIdsToUpdate = (Array.isArray(fileIds)) ? new Set(fileIds) : new Set([fileIds]);
-        let fileIdsToUpdate = fileIds;
+        let fileIdsToUpdate = new Set(fileIds);
 
         let syncBookmark = fileId => {
             fileIdsToUpdate.delete(fileId);
 
-            let file = this.account.files.list.get(fileId);
-
+            let file = this.sync.files.list.get(fileId);
 
             // Gather parent bookmarks (and update them if need be)
             let promisesOfParentBookmarkIds = [];
@@ -77,12 +81,12 @@ export default class BookmarkManager {
                     promisesOfParentBookmarkIds.push(
                         syncBookmark(parentId)
                         .then(() => {
-                            return Promise.resolve(this.account.sync.list.files.get(parentId));
+                            return Promise.resolve(this.sync.map.files.get(parentId));
                         })
                     );
                 }
                 else {
-                    promisesOfParentBookmarkIds.push(this.account.sync.list.files.get(parentId));
+                    promisesOfParentBookmarkIds.push(this.sync.map.files.get(parentId));
                 }
             }
 
@@ -93,11 +97,11 @@ export default class BookmarkManager {
                     parentBookmarkIds.splice(index + 1, 1);
                 }
 
-                let bookmarkIds = this.account.sync.list.files.get(fileId);
+                let bookmarkIds = this.sync.map.files.get(fileId);
 
                 // Add a 'parent' for the root folder
-                if (fileId == this.account.get('rootFileId')) {
-                    parentBookmarkIds.push(this.account.get('rootBookmarkParentId'));
+                if (fileId == this.sync.account.get('rootFileId')) {
+                    parentBookmarkIds.push(this.sync.account.get('rootBookmarkParentId'));
                     // parentBookmarkIds.push(1);
                 }
 
@@ -185,7 +189,7 @@ export default class BookmarkManager {
                 let bookmarks = arraysOfBookmarks.flat();
 
                 for (let bookmark of bookmarks) {
-                    this.account.sync.list.bookmarks.set(bookmark.id, fileId);
+                    this.sync.map.bookmarks.set(bookmark.id, fileId);
                 }
 
                 return Promise.resolve();
@@ -206,7 +210,8 @@ export default class BookmarkManager {
     }
 
     remove(bookmarkId) {
-        this.account.sync.list.bookmarks.delete(bookmarkId);
+        // TODO: UPDATE THIS
+        this.account.sync.map.bookmarks.delete(bookmarkId);
 
         return Promise.resolve(BookmarkAPI.remove(bookmarkId));
     }

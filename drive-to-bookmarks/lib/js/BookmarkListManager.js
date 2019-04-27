@@ -4,8 +4,4 @@ export default class BookmarkListManager extends Map {
 
         this.account = account;
     }
-
-    getAll() {
-        return new Set([...super.keys()]);
-    }
 }
