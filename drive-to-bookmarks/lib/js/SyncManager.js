@@ -16,23 +16,66 @@ export default class SyncManager {
         this.bookmarks.start();
     }
 
-    full() {
-        // let newFileIds = this.account.files.list.getAll();
+    fullFileSync() {
+        let newFileIds = this.files.getAll();
 
-        // for (let fileId of this.list.files.getAll()) {
-        //     if (newFileIds.has(fileId)) {
-        //         newFileIds.delete(fileId);
-        //     }
-        //     else {
-        //         this.list.files.delete(fileId);
-        //     }
-        // }
+        for (let fileId of this.map.files.getAll()) {
+            if (newFileIds.has(fileId)) {
+                newFileIds.delete(fileId);
+            }
+            else {
+                this.map.files.delete(fileId);
+            }
+        }
 
-        // for (let fileId of newFileIds) {
-        //     this.list.files.set(fileId);
-        // }
+        for (let fileId of newFileIds) {
+            this.map.files.set(fileId);
+        }
+    }
 
-        // this.account.bookmarks.sync(this.list.files.getAll());
+    fullBookmarkSync() {
+        let fileIdsToUpdate = this.files.getAll();
+
+        let syncBookmark = fileId => {
+            fileIdsToUpdate.delete(fileId);
+
+            let file = this.files.get(fileId);
+
+            // Gather parent bookmarks (and update them if need be)
+            let promisesOfParentUpdates = [];
+            for (let parentId of file.parents) {
+                if (fileIdsToUpdate.has(parentId)) {
+                    promisesOfParentUpdates.push(syncBookmark(parentId));
+                }
+            }
+
+            return Promise.all(promisesOfParentUpdates)
+            .then(() => {
+                return this.bookmarks.update(fileId);
+            })
+            .then(arraysOfBookmarks => {
+                let bookmarks = arraysOfBookmarks.flat();
+
+                for (let bookmark of bookmarks) {
+                    this.map.bookmarks.set(bookmark.id, fileId);
+                }
+
+                return Promise.resolve();
+            });
+        }
+
+        let syncBookmarks = () => {
+            if (fileIdsToUpdate.size == 0) {
+                return Promise.resolve();
+            }
+
+            return syncBookmark(fileIdsToUpdate.values().next().value)
+            .then(() => {
+                return syncBookmarks();
+            });
+        }
+        return syncBookmarks();
+        // SHOULD I DELETE EXCESS BOOKMARKS NOW?
     }
 
     save() {

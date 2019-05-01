@@ -15,7 +15,10 @@ export default class BookmarkManager extends Map {
     }
 
     start() {
-        this.refresh();
+        return this.refresh()
+        .then(() => {
+            return this.sync.fullBookmarkSync();
+        });
     }
 
     refresh() {
@@ -65,148 +68,98 @@ export default class BookmarkManager extends Map {
         });
     }
 
-    sync(fileIds) {
-        // let fileIdsToUpdate = (Array.isArray(fileIds)) ? new Set(fileIds) : new Set([fileIds]);
-        let fileIdsToUpdate = new Set(fileIds);
+    update(fileId) {
+        let file = this.files.get(fileId);
+        let bookmarkIds  = this.sync.map.files.get(fileId);
 
-        let syncBookmark = fileId => {
-            fileIdsToUpdate.delete(fileId);
+        // Gather parent bookmarks
+        let parentBookmarkIds = [];
+        for (let fileParentId of file.parents) {
+            parentBookmarkIds = [...parentBookmarkIds, ...this.sync.map.files.get(fileParentId)];
+        }
+        if (fileId == this.sync.account.get('rootFileId')) {
+            parentBookmarkIds.push(this.sync.account.get('rootBookmarkParentId'));
+        }
 
-            let file = this.sync.files.list.get(fileId);
+        // Generate a list of what the bookmarks should be
+        let basicBookmark = EncodeBookmark(file);
+        let bookmarks = [];
+        for (let parentBookmarkId of parentBookmarkIds) {
+            let parentBookmark = this.get(parentBookmarkId);
 
-            // Gather parent bookmarks (and update them if need be)
-            let promisesOfParentBookmarkIds = [];
-            for (let parentId of file.parents) {
-                if (fileIdsToUpdate.has(parentId)) {
-                    promisesOfParentBookmarkIds.push(
-                        syncBookmark(parentId)
-                        .then(() => {
-                            return Promise.resolve(this.sync.map.files.get(parentId));
-                        })
-                    );
+            if (parentBookmark && parentBookmark.isFolder) {
+                if (file.isFolder) {
+                    bookmarks.push({
+                        folder: {
+                            ...basicBookmark,
+                            parentId: parentBookmarkId,
+                            url: null
+                        },
+                        link: {
+                            ...basicBookmark,
+                            parentId: null,
+                        }
+                    });
                 }
                 else {
-                    promisesOfParentBookmarkIds.push(this.sync.map.files.get(parentId));
+                    bookmarks.push({
+                        link: {
+                            ...basicBookmark,
+                            parentId: parentBookmarkId,
+                        }
+                    });
                 }
             }
-
-            return Promise.all(promisesOfParentBookmarkIds)
-            .then(arraysOfParentBookmarkIds => {
-                let parentBookmarkIds = arraysOfParentBookmarkIds.flat();
-                for (let index in parentBookmarkIds) {
-                    parentBookmarkIds.splice(index + 1, 1);
-                }
-
-                let bookmarkIds = this.sync.map.files.get(fileId);
-
-                // Add a 'parent' for the root folder
-                if (fileId == this.sync.account.get('rootFileId')) {
-                    parentBookmarkIds.push(this.sync.account.get('rootBookmarkParentId'));
-                    // parentBookmarkIds.push(1);
-                }
-
-                // Create list of faux-bookmarks to be created
-                let basicBookmark = EncodeBookmark(file);
-                let bookmarks = [];
-                for (let parentBookmarkId of parentBookmarkIds) {
-                    if (file.isFolder) {
-                        bookmarks.push({
-                            folder: {
-                                ...basicBookmark,
-                                parentId: parentBookmarkId,
-                                url: null
-                            },
-                            link: {
-                                ...basicBookmark,
-                                parentId: null,
-                                url: file.url
-                            }
-                        });
-                    }
-                    else {
-                        bookmarks.push({
-                            link: {
-                                ...basicBookmark,
-                                parentId: parentBookmarkId,
-                                url: file.url
-                            }
-                        });
-                    }
-                }
-
-                // Remove excess bookmarks in the file's name
-                while (bookmarkIds.length > bookmarks.length) {
-                    remove(bookmarkIds.pop());
-                }
-
-                // Assign the previous bookmark ids to the new bookmarks
-                let tempBookmarkIds = [...bookmarkIds];
-                for (let bookmark of bookmarks) {
-                    // TODO: Is there pop for the front?
-                    // Also, do I need to bound check?
-                    if (!!bookmark.folder) {
-                        bookmark.folder.id = tempBookmarkIds.slice(0, 1);
-                    }
-                    bookmark.link.id = tempBookmarkIds.slice(0, 1);
-                }
-
-                // Update bookmark if found, create it if not
-                let checkBookmark = bookmark => {
-                    if (this.list.has(bookmark.id)) {
-                        return BookmarkAPI.update(bookmark.id, bookmark)
-                        .then(newBookmark => {
-                            return Promise.resolve(DecodeBookmark(newBookmark));
-                        });
-                    }
-                    else {
-                        return BookmarkAPI.create(bookmark)
-                        .then(newBookmark => {
-                            return Promise.resolve(DecodeBookmark(newBookmark));
-                        });
-                    }
-                }
-
-                // Actually create/update the bookmarks
-                let promises = [];
-                for (let bookmark of bookmarks) {
-                    if (!!bookmark.folder) {
-                        promises.push(
-                            checkBookmark(bookmark.folder)
-                            .then(newFolderBookmark => {
-                                bookmark.link.parentId = newFolderBookmark.id;
-                                return Promise.all([newFolderBookmark, checkBookmark(bookmark.link)]);
-                            })
-                        );
-                    }
-                    else {
-                        promises.push(checkBookmark(bookmark.link));
-                    }
-                }
-
-                return Promise.all(promises);
-            })
-            .then(arraysOfBookmarks => {
-                let bookmarks = arraysOfBookmarks.flat();
-
-                for (let bookmark of bookmarks) {
-                    this.sync.map.bookmarks.set(bookmark.id, fileId);
-                }
-
-                return Promise.resolve();
-            });
         }
 
-        let syncBookmarks = () => {
-            if (fileIdsToUpdate.size == 0) {
-                return Promise.resolve();
+        // Remove excess bookmarks
+        while (bookmarkIds.length > bookmarks.length) {
+            remove(bookmarkIds.pop());
+        }
+
+        // Assign the previous bookmark ids to the new bookmarks
+        let tempBookmarkIds = [...bookmarkIds];
+        for (let bookmark of bookmarks) {
+            if (bookmark.folder) {
+                bookmark.folder.id = tempBookmarkIds.splice(0, 1);
             }
-
-            return syncBookmark(fileIdsToUpdate.values().next().value)
-            .then(() => {
-                return syncBookmarks();
-            });
+            bookmark.link.id = tempBookmarkIds.splice(0, 1);
         }
-        return syncBookmarks();
+
+        // Function that updates or creates the bookmark
+        let checkBookmark = bookmark => {
+            if (this.has(bookmark.id)) {
+                return BookmarkAPI.update(bookmark.id, bookmark)
+                .then(newBookmark => {
+                    return Promise.resolve(DecodeBookmark(newBookmark));
+                });
+            }
+            else {
+                return BookmarkAPI.create(bookmark)
+                .then(newBookmark => {
+                    return Promise.resolve(DecodeBookmark(newBookmark));
+                });
+            }
+        }
+
+        // Create each bookmark
+        let promisesOfBookmarks = [];
+        for (let bookmark of bookmarks) {
+            if (bookmark.folder) {
+                promisesOfBookmarks.push(
+                    checkBookmark(bookmark.folder)
+                    .then(newFolderBookmark => {
+                        bookmark.link.parentId = newFolderBookmark.id;
+                        return Promise.all([newFolderBookmark, checkBookmark(bookmark.link)]);
+                    })
+                );
+            }
+            else {
+                promisesOfBookmarks.push(checkBookmark(bookmark.link));
+            }
+        }
+
+        return Promise.all(promises);
     }
 
     remove(bookmarkId) {

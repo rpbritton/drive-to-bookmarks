@@ -8,7 +8,10 @@ export default class FileManager extends Map {
     }
 
     start() {
-        this.refresh();
+        return this.refresh()
+        .then(() => {
+            return this.sync.fullFileSync();
+        });
     }
 
     refresh() {
@@ -72,14 +75,7 @@ export default class FileManager extends Map {
             }
 
             if (file.parents.size > 0 || file.id == this.sync.account.get('rootFileId')) {
-                if (this.has(file.id)) {
-                    this.update(file.id, file);
-                }
-                else {
-                    this.set(file.id, file);
-                    // this.file.setNode(node);
-                    // this.bookmark.setNode(node);
-                }
+                this.set(file.id, file);
             }
         };
 
@@ -90,6 +86,17 @@ export default class FileManager extends Map {
 
     getAll() {
         return new Set([...super.keys()]);
+    }
+
+    set(fileId, file) {
+        if (super.has(fileId)) {
+            this.sync.updateFile(file);
+        }
+        else {
+            this.sync.addFile(file);
+        }
+
+        super.set(fileId, file);
     }
 }
 

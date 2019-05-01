@@ -84,11 +84,11 @@ class AccountManagerBackground {
     }
 
     get changes() {
-        if (!this._changeEmitter) {
-            this._changeEmitter = document.createElement('null');
+        if (!this.changeEmitter) {
+            this.changeEmitter = document.createElement('null');
         }
 
-        return this._changeEmitter;
+        return this.changeEmitter;
     }
 
     dispatchEvent(type, account) {
