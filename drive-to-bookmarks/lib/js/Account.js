@@ -1,6 +1,9 @@
 import OAuthManager from './OAuthManager.js'
 import AccountManager from './AccountManager.js'
-import SyncManager from './SyncManager.js'
+// import SyncManager from './SyncManager.js'
+import RegistryManager from './RegistryManager.js'
+import BookmarksManager from './BookmarksManager.js'
+import FilesManager from './FilesManager.js'
 
 export default class Account {
     constructor(info = {}) {
@@ -12,7 +15,9 @@ export default class Account {
         Object.assign(this._info, info);
 
         this.oauth = new OAuthManager(this);
-        this.sync = new SyncManager(this);
+        this.registry = new RegistryManager(this);
+        this.bookmarks = new BookmarksManager(this);
+        this.files = new FilesManager(this);
     }
 
     static add() {
@@ -45,8 +50,13 @@ export default class Account {
         });
     }
 
+    start() {
+        this.bookmarks.start();
+        this.files.start();
+    }
+
     save() {
-        this.sync.save();
+        this.registry.save();
     }
 
     get(keys) {

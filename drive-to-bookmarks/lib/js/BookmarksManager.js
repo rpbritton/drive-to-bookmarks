@@ -1,36 +1,38 @@
-import BookmarkAPI from './BookmarkAPI.js'
-// import BookmarkListManager from './BookmarkListManager.js';
+import BookmarksAPI from './BookmarksAPI.js'
+import ListenableMap from './ListenableMap.js'
 
-export default class BookmarkManager extends Map {
-    constructor(syncManager) {
+export default class BookmarksManager extends ListenableMap {
+    constructor(account) {
         super();
 
-        this.sync = syncManager;
-
-        // this.list = new BookmarkListManager(account);
+        this.account = account;
+        this.registry = account.registry;
+        // this.api = new BookmarksAPI(account);
     }
 
-    getAll() {
-        return new Set([...super.keys()]);
-    }
-
-    start() {
-        return this.refresh()
-        .then(() => {
-            return this.sync.fullBookmarkSync();
+    // THIS SHOULD DEFINEITELY BE IN THE API | MAYBE OVERLOAD SET?
+    create(bookmark) {
+        return new Promise((resolve, reject) => {
+            BookmarksAPI.create(EncodeBookmark(bookmark))
+            .then(bookmark => {
+                resolve(DecodeBookmark(bookmark));
+            });
         });
     }
 
     refresh() {
-        let rootFileId = this.sync.account.get('rootFileId');
-        let rootBookmarkIds = this.sync.map.files.get(rootFileId);
+        let rootFileId = this.account.get('rootFileId');
+        let rootBookmarkIds = this.registry.files.get(rootFileId);
         if (!rootBookmarkIds) {
             super.clear();
             return Promise.resolve();
         }
+        // MAYBE DO SOMETHING A WEEEE BIT MORE FANCY??????? ANGRY BOI.
+        // ^^^^^ MORE LIKE UNFOCUSED JEEEEZ
         let rootBookmarkId = rootBookmarkIds[0];
 
-        return BookmarkAPI.get(rootBookmarkId)
+        // YA BOI MOVE TO THE API FILE FOR EASY VICTORY ROYAS
+        return BookmarksAPI.get(rootBookmarkId)
         .then(tree => {
             let oldBookmarkIds = this.getAll();
 
@@ -53,19 +55,81 @@ export default class BookmarkManager extends Map {
                 super.delete(oldBookmarkId);
             }
 
-            console.log(this.list);
+            console.log(this);
 
             return Promise.resolve();
         });
     }
 
-    create(bookmark) {
-        return new Promise((resolve, reject) => {
-            BookmarkAPI.create(EncodeBookmark(bookmark))
-            .then(bookmark => {
-                resolve(DecodeBookmark(bookmark));
-            });
+    // THIS SHOULD DEFINEITELY BE IN THE API | MAYBE OVERLOAD DELETE TO NOTIFY REGISTRY??
+    remove(bookmarkId) {
+        // TODO: UPDATE THIS
+        this.registry.bookmarks.delete(bookmarkId);
+
+        return Promise.resolve(BookmarksAPI.remove(bookmarkId));
+    }
+
+    start() {
+        return this.refresh()
+        .then(() => {
+            return this.sync();
         });
+    }
+
+    sync(fileIdsToUpdate) {
+        if (!fileIdsToUpdate) {
+            fileIdsToUpdate = this.registry.files.getAll();
+        }
+        else if (Array.isArray(fileIdsToUpdate)) {
+            fileIdsToUpdate = new Set(fileIdsToUpdate);
+        }
+        else {
+            fileIdsToUpdate = new Set([fileIdsToUpdate]);
+        }
+
+        let syncBookmark = fileId => {
+            fileIdsToUpdate.delete(fileId);
+
+            let file = this.account.files.get(fileId);
+            
+            if (!file) {
+                return;
+            }
+
+            let promisesOfParentUpdates = [];
+            for (let parentId of file.parents) {
+                if (fileIdsToUpdate.has(parentId)) {
+                    promisesOfParentUpdates.push(syncBookmark(parentId));
+                }
+            }
+
+            return Promise.all(promisesOfParentUpdates)
+            .then(() => {
+                return this.update(fileId);
+            })
+            .then(arraysOfBookmarks => {
+                let bookmarks = arraysOfBookmarks.flat();
+
+                for (let bookmark of bookmarks) {
+                    this.map.bookmarks.set(bookmark.id, fileId);
+                }
+
+                return Promise.resolve();
+            });
+        }
+
+        let syncBookmarks = () => {
+            if (fileIdsToUpdate.size == 0) {
+                return Promise.resolve();
+            }
+
+            return syncBookmark(fileIdsToUpdate.values().next().value)
+            .then(() => {
+                return syncBookmarks();
+            });
+        }
+        return syncBookmarks();
+        // SHOULD I DELETE EXCESS BOOKMARKS NOW?
     }
 
     update(fileId) {
@@ -129,13 +193,13 @@ export default class BookmarkManager extends Map {
         // Function that updates or creates the bookmark
         let checkBookmark = bookmark => {
             if (this.has(bookmark.id)) {
-                return BookmarkAPI.update(bookmark.id, bookmark)
+                return BookmarksAPI.update(bookmark.id, bookmark)
                 .then(newBookmark => {
                     return Promise.resolve(DecodeBookmark(newBookmark));
                 });
             }
             else {
-                return BookmarkAPI.create(bookmark)
+                return BookmarksAPI.create(bookmark)
                 .then(newBookmark => {
                     return Promise.resolve(DecodeBookmark(newBookmark));
                 });
@@ -161,14 +225,9 @@ export default class BookmarkManager extends Map {
 
         return Promise.all(promises);
     }
-
-    remove(bookmarkId) {
-        // TODO: UPDATE THIS
-        this.account.sync.map.bookmarks.delete(bookmarkId);
-
-        return Promise.resolve(BookmarkAPI.remove(bookmarkId));
-    }
 }
+
+// TODO:: THIS STUFF SHOULD GO IN `BookmarksAPI.js`
 
 function DecodeBookmark(bookmark) {
     let children = [];

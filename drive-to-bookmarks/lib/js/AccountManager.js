@@ -18,7 +18,7 @@ class AccountManagerBackground {
                 for (let info of accountsInfo) {
                     this.accounts.push(new (AccountProviders.get(info.provider))(info));
 
-                    this.accounts[this.accounts.length - 1].sync.start();
+                    this.accounts[this.accounts.length - 1].start();
 
                     this.dispatchEvent('add', this.accounts[this.accounts.length - 1]);
                 }
