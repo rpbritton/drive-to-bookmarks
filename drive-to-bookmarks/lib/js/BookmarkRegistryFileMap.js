@@ -6,7 +6,6 @@ export default class RegistryFilesMap extends ListenableMap {
 
         this.registry = registry;
         this.account = registry.account;
-        this.bookmarks = registry.bookmarks;
     }
 
     delete(fileId) {
@@ -15,7 +14,7 @@ export default class RegistryFilesMap extends ListenableMap {
             super.delete(fileId);
 
             for (let bookmarkId of bookmarkIds) {
-                this.bookmarks.delete(bookmarkId);
+                this.registry.bookmarks.delete(bookmarkId);
             }
         }
     }
@@ -31,7 +30,7 @@ export default class RegistryFilesMap extends ListenableMap {
 
         if (bookmarkId && !super.get(fileId).includes(bookmarkId)) {
             super.get(fileId).push(bookmarkId);
-            this.bookmarks.set(bookmarkId, fileId);
+            this.registry.bookmarks.set(bookmarkId, fileId);
         }
     }
 

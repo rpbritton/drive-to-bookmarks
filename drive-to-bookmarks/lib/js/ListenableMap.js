@@ -9,6 +9,16 @@ export default class ListenableMap extends Map {
         this.listeners.add(listener);
     }
 
+    clear() {
+        let entries = super.entries();
+
+        super.clear();
+
+        for (let [key, oldVal] of entries) {
+            this.notify('remove', key, oldVal);
+        }
+    }
+
     getAll() {
         return new Set([...super.keys()]);
     }
@@ -16,10 +26,7 @@ export default class ListenableMap extends Map {
     delete(key) {
         let oldVal = super.get(key);
         super.delete(key);
-
-        if (oldVal) {
-            notify('remove', key, oldVal);
-        }
+        this.notify('remove', key, oldVal);
     }
 
     notify(command, key, oldVal) {
@@ -39,10 +46,10 @@ export default class ListenableMap extends Map {
         super.set(key, val);
 
         if (oldVal) {
-            notify('update', key, oldVal);
+            this.notify('update', key, oldVal);
         }
         else {
-            notify('add', key);
+            this.notify('add', key);
         }
 
     }

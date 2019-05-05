@@ -6,7 +6,7 @@ export default class FilesManager extends ListenableMap {
         super();
 
         this.account = account;
-        this.registry = account.registry;
+        // this.registry = account.registry;
         // this.api = new FilesAPI(account);
     }
 
@@ -75,9 +75,15 @@ export default class FilesManager extends ListenableMap {
 
             console.log(this);
 
-            return Promise.resolve();
+            return this.account.bookmarks.update();
+
+            // return Promise.resolve();
             // this.account.sync.full();
         });
+    }
+
+    save() {
+        
     }
 
     set(fileId, file) {
@@ -92,10 +98,10 @@ export default class FilesManager extends ListenableMap {
     }
 
     start() {
-        return this.refresh()
-        .then(() => {
-            return this.registry.files.sync();
-        });
+        return this.refresh();
+        // .then(() => {
+        //     return this.registry.files.sync();
+        // });
     }
 }
 

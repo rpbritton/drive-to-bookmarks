@@ -12,7 +12,6 @@ export default class RegistryBookmarksMap extends ListenableMap {
 
         this.registry = registry;
         this.account = registry.account;
-        this.bookmarks = registry.bookmarks;
     }
 
     delete(bookmarkId) {
@@ -20,8 +19,8 @@ export default class RegistryBookmarksMap extends ListenableMap {
             let fileId = super.get(bookmarkId);
             super.delete(bookmarkId);
 
-            if (this.files.has(fileId) && this.files.get(fileId).includes(bookmarkId)) {
-                let bookmarkIds = this.files.get(fileId);
+            if (this.registry.files.has(fileId) && this.registry.files.get(fileId).includes(bookmarkId)) {
+                let bookmarkIds = this.registry.files.get(fileId);
 
                 bookmarkIds.splice(bookmarkIds.indexOf(bookmarkId), 1);
             }
@@ -38,8 +37,8 @@ export default class RegistryBookmarksMap extends ListenableMap {
         }
         super.set(bookmarkId, fileId);
 
-        if (!this.files.has(fileId) || !this.files.get(fileId).includes(bookmarkId)) {
-            this.files.set(fileId, bookmarkId);
+        if (!this.registry.files.has(fileId) || !this.registry.files.get(fileId).includes(bookmarkId)) {
+            this.registry.files.set(fileId, bookmarkId);
         }
     }
 

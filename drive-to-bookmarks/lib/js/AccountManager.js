@@ -22,7 +22,7 @@ class AccountManagerBackground {
 
                     this.dispatchEvent('add', this.accounts[this.accounts.length - 1]);
                 }
-            } 
+            }
             else {
                 saveAccounts();
             }
