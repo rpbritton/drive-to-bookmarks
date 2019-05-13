@@ -8,67 +8,41 @@ export default class BookmarksManager extends ListenableMap {
 
         this.account = account;
         this.registry = new BookmarkRegistryManager(account);
-        // this.api = new BookmarksAPI(account);
-    }
-
-    // THIS SHOULD DEFINEITELY BE IN THE API | MAYBE OVERLOAD SET?
-    create(bookmark) {
-        return new Promise((resolve, reject) => {
-            BookmarksAPI.create(EncodeBookmark(bookmark))
-            .then(bookmark => {
-                resolve(DecodeBookmark(bookmark));
-            });
-        });
+        this.api = new BookmarksAPI(account);
     }
 
     /*
      * Fully populates the bookmark list based on the physically existing bookmarks.
      */
     refresh() {
-        let rootFileId = this.account.get('rootFileId');
-        let rootBookmarkIds = this.registry.files.get(rootFileId);
-        if (!rootBookmarkIds) {
-            // TODO: Remove all stored bookmarks
-            super.clear();
-            return Promise.resolve();
-        }
-        // TODO: Something better (support for multiple bookmarks?)
-        let rootBookmarkId = rootBookmarkIds[0];
+        return new Promise((resolve, reject) => {
+            let rootFileId = this.account.get('rootFileId');
+            let rootBookmarkIds = this.registry.files.get(rootFileId);
+            if (!rootBookmarkIds) {
+                // TODO: Remove all stored bookmarks
+                super.clear();
+                resolve();
+            }
+            // TODO: Something better (support for multiple bookmarks?)
+            let rootBookmarkId = rootBookmarkIds[0];
 
-        // TODO: Move the API out (make it more abstracted);
-        return BookmarksAPI.get(rootBookmarkId)
-        .then(tree => {
-            let oldBookmarkIds = this.getAll();
+            this.api.get(rootBookmarkId)
+            .then(bookmarks => {
+                let oldBookmarkIds = this.getAll();
 
-            let traverseBookmark = bookmark => {
-                oldBookmarkIds.delete(bookmark.id);
+                for (let [bookmarkId, bookmark] of bookmarks) {
+                    oldBookmarkIds.delete(bookmarkId);
 
-                super.set(bookmark.id, DecodeBookmark(bookmark));
-
-                if (bookmark.children) {
-                    for (let childBookmark of bookmark.children) {
-                        traverseBookmark(childBookmark);
-                    }
+                    super.set(bookmarkId, bookmark);
                 }
-            }
-            for (let bookmark of tree) {
-                traverseBookmark(bookmark);
-            }
 
-            for (let oldBookmarkId of oldBookmarkIds) {
-                super.delete(oldBookmarkId);
-            }
+                for (let oldBookmarkId of oldBookmarkIds) {
+                    super.delete(oldBookmarkId);
+                }
 
-            return Promise.resolve();
+                resolve();
+            });
         });
-    }
-
-    // THIS SHOULD DEFINEITELY BE IN THE API | MAYBE OVERLOAD DELETE TO NOTIFY REGISTRY??
-    remove(bookmarkId) {
-        // TODO: UPDATE THIS
-        this.registry.bookmarks.delete(bookmarkId);
-
-        return Promise.resolve(BookmarksAPI.remove(bookmarkId));
     }
 
     /*
@@ -84,11 +58,12 @@ export default class BookmarksManager extends ListenableMap {
      */
     start() {
         return this.refresh();
-        // .then(() => {
-        //     return this.sync();
-        // });
+        // TODO: Create listeners here?
     }
 
+    /*
+     * Update all the given files (by id). If none are given, resync the list.
+     */
     update(fileIds) {
         if (fileIds == null) {
             fileIds = new Set([...this.registry.files.getAll(), ...this.account.files.getAll()]);
@@ -105,7 +80,8 @@ export default class BookmarksManager extends ListenableMap {
 
             let file = this.account.files.get(fileId);
             
-            if (file == null) {
+            if (!file) {
+                // TODO: Is this the right place?
                 this.registry.files.delete(fileId);
                 return;
             }
@@ -135,7 +111,7 @@ export default class BookmarksManager extends ListenableMap {
                 }
 
                 let bookmarks = [];
-                let basicBookmarkTemplate = EncodeBookmark(file);
+                let basicBookmarkTemplate = Object.assign({}, file);
                 let addBookmarkTemplate = parentBookmarkId => {
                     if (file.isFolder) {
                         bookmarks.push({
@@ -146,7 +122,7 @@ export default class BookmarksManager extends ListenableMap {
                             link: {
                                 ...basicBookmarkTemplate,
                                 parentId: null,
-                                url: file.url
+                                isFolder: false
                             }
                         });
                     }
@@ -186,15 +162,15 @@ export default class BookmarksManager extends ListenableMap {
                 // Function that updates or creates the bookmark
                 let updateBookmark = bookmark => {
                     if (this.has(bookmark.id)) {
-                        return BookmarksAPI.update(bookmark.id, bookmark)
+                        return this.api.update(bookmark.id, bookmark)
                         .then(newBookmark => {
-                            return Promise.resolve(DecodeBookmark(newBookmark));
+                            return Promise.resolve(newBookmark);
                         });
                     }
                     else {
-                        return BookmarksAPI.create(bookmark)
+                        return this.api.create(bookmark)
                         .then(newBookmark => {
-                            return Promise.resolve(DecodeBookmark(newBookmark));
+                            return Promise.resolve(newBookmark);
                         });
                     }
                 }
@@ -232,54 +208,21 @@ export default class BookmarksManager extends ListenableMap {
             });
         }
 
-        let updateFiles = () => {
-            if (fileIds.size == 0) {
-                return Promise.resolve();
-            }
-
-            return updateFile(fileIds.values().next().value)
-            .then(() => {
-                return updateFiles();
-            });
-        }
-        return updateFiles();
-        // SHOULD I DELETE EXCESS BOOKMARKS NOW?
-    }
-}
-
-// TODO:: THIS STUFF SHOULD GO IN `BookmarksAPI.js`
-
-function DecodeBookmark(bookmark) {
-    let children = [];
-    if (bookmark.children) {
-        for (let child of bookmark.children) {
-            if (typeof child == 'object') {
-                if (child.id) {
-                    children.push(child.id);
+        return new Promise((resolve, reject) => {
+            let updateFiles = () => {
+                if (fileIds.size > 0) {
+                    updateFile(fileIds.values().next().value)
+                    .then(() => {
+                        updateFiles();
+                    });
+                }
+                else {
+                    resolve();
                 }
             }
-            else {
-                children.push(child);
-            }
-        }
-    }
+            updateFiles();
+        });
 
-    return {
-        id: bookmark.id,
-        isFolder: (!bookmark.url || bookmark.isFolder),
-        url: bookmark.url,
-        name: (bookmark.name) ? bookmark.name : bookmark.title,
-        parent: bookmark.parentId,
-        children: children
+        // SHOULD I DELETE EXCESS BOOKMARKS NOW?
     }
-}
-
-function EncodeBookmark(bookmark) {
-    return {
-        id: bookmark.id,
-        title: bookmark.name,
-        url: (bookmark.isFolder) ? null : bookmark.url,
-        parentId: bookmark.parentId,
-        index: bookmark.index
-    };
 }
